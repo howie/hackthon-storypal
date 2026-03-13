@@ -119,7 +119,7 @@ lint: lint-back lint-front
 
 lint-back:
 	@echo "$(CYAN)檢查後端程式碼...$(RESET)"
-	cd backend && uv run ruff check src tests
+	cd backend && uv run ruff check .
 
 lint-front:
 	@echo "$(CYAN)檢查前端程式碼...$(RESET)"
@@ -130,8 +130,8 @@ format: format-back format-front
 
 format-back:
 	@echo "$(CYAN)格式化後端程式碼...$(RESET)"
-	cd backend && uv run ruff format src tests
-	cd backend && uv run ruff check --fix src tests
+	cd backend && uv run ruff format .
+	cd backend && uv run ruff check --fix .
 
 format-front:
 	@echo "$(CYAN)格式化前端程式碼...$(RESET)"
@@ -142,7 +142,7 @@ check: lint format-check typecheck
 
 format-check:
 	@echo "$(CYAN)檢查程式碼格式...$(RESET)"
-	cd backend && uv run ruff format --check src tests
+	cd backend && uv run ruff format --check .
 
 typecheck:
 	@echo "$(CYAN)執行型別檢查...$(RESET)"

@@ -7,7 +7,6 @@ Create Date: 2026-03-13
 """
 
 import uuid
-from datetime import datetime, timezone
 
 import sqlalchemy as sa
 from alembic import op
@@ -91,9 +90,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("session_id", "turn_number", name="uq_turn_session_number"),
     )
     op.create_index("idx_turn_session_id", "conversation_turns", ["session_id"])
-    op.create_index(
-        "idx_turn_session_number", "conversation_turns", ["session_id", "turn_number"]
-    )
+    op.create_index("idx_turn_session_number", "conversation_turns", ["session_id", "turn_number"])
 
     # Latency Metrics
     op.create_table(
@@ -279,8 +276,22 @@ def upgrade() -> None:
                 "target_age_max": 8,
                 "language": "zh-TW",
                 "characters": [
-                    {"name": "棉花糖", "description": "一隻勇敢又善良的小白兔", "voice_provider": "gemini", "voice_id": "Puck", "voice_settings": {}, "emotion": "happy"},
-                    {"name": "松果爺爺", "description": "一隻年老的松鼠", "voice_provider": "gemini", "voice_id": "Charon", "voice_settings": {}, "emotion": "neutral"},
+                    {
+                        "name": "棉花糖",
+                        "description": "一隻勇敢又善良的小白兔",
+                        "voice_provider": "gemini",
+                        "voice_id": "Puck",
+                        "voice_settings": {},
+                        "emotion": "happy",
+                    },
+                    {
+                        "name": "松果爺爺",
+                        "description": "一隻年老的松鼠",
+                        "voice_provider": "gemini",
+                        "voice_id": "Charon",
+                        "voice_settings": {},
+                        "emotion": "neutral",
+                    },
                 ],
                 "scenes": [
                     {"scene_number": 1, "title": "出發", "description": "棉花糖決定出發冒險"},
@@ -300,8 +311,22 @@ def upgrade() -> None:
                 "target_age_max": 10,
                 "language": "zh-TW",
                 "characters": [
-                    {"name": "阿星", "description": "勇敢的小太空人", "voice_provider": "gemini", "voice_id": "Puck", "voice_settings": {}, "emotion": "excited"},
-                    {"name": "AI小助手", "description": "太空船的智慧助手", "voice_provider": "gemini", "voice_id": "Kore", "voice_settings": {}, "emotion": "neutral"},
+                    {
+                        "name": "阿星",
+                        "description": "勇敢的小太空人",
+                        "voice_provider": "gemini",
+                        "voice_id": "Puck",
+                        "voice_settings": {},
+                        "emotion": "excited",
+                    },
+                    {
+                        "name": "AI小助手",
+                        "description": "太空船的智慧助手",
+                        "voice_provider": "gemini",
+                        "voice_id": "Kore",
+                        "voice_settings": {},
+                        "emotion": "neutral",
+                    },
                 ],
                 "scenes": [
                     {"scene_number": 1, "title": "發射", "description": "太空船發射升空"},
@@ -321,11 +346,29 @@ def upgrade() -> None:
                 "target_age_max": 7,
                 "language": "zh-TW",
                 "characters": [
-                    {"name": "咪咪", "description": "愛做菜的小貓咪", "voice_provider": "gemini", "voice_id": "Aoede", "voice_settings": {}, "emotion": "happy"},
-                    {"name": "鍋鍋師傅", "description": "會說話的魔法鍋", "voice_provider": "gemini", "voice_id": "Fenrir", "voice_settings": {}, "emotion": "neutral"},
+                    {
+                        "name": "咪咪",
+                        "description": "愛做菜的小貓咪",
+                        "voice_provider": "gemini",
+                        "voice_id": "Aoede",
+                        "voice_settings": {},
+                        "emotion": "happy",
+                    },
+                    {
+                        "name": "鍋鍋師傅",
+                        "description": "會說話的魔法鍋",
+                        "voice_provider": "gemini",
+                        "voice_id": "Fenrir",
+                        "voice_settings": {},
+                        "emotion": "neutral",
+                    },
                 ],
                 "scenes": [
-                    {"scene_number": 1, "title": "發現魔法廚房", "description": "咪咪發現一間神奇的廚房"},
+                    {
+                        "scene_number": 1,
+                        "title": "發現魔法廚房",
+                        "description": "咪咪發現一間神奇的廚房",
+                    },
                     {"scene_number": 2, "title": "料理挑戰", "description": "開始製作魔法料理"},
                     {"scene_number": 3, "title": "完成", "description": "成功做出美味料理"},
                 ],
@@ -342,8 +385,22 @@ def upgrade() -> None:
                 "target_age_max": 9,
                 "language": "zh-TW",
                 "characters": [
-                    {"name": "阿海", "description": "好奇心旺盛的小海龜", "voice_provider": "gemini", "voice_id": "Puck", "voice_settings": {}, "emotion": "happy"},
-                    {"name": "珊珊", "description": "美麗的珊瑚精靈", "voice_provider": "gemini", "voice_id": "Aoede", "voice_settings": {}, "emotion": "neutral"},
+                    {
+                        "name": "阿海",
+                        "description": "好奇心旺盛的小海龜",
+                        "voice_provider": "gemini",
+                        "voice_id": "Puck",
+                        "voice_settings": {},
+                        "emotion": "happy",
+                    },
+                    {
+                        "name": "珊珊",
+                        "description": "美麗的珊瑚精靈",
+                        "voice_provider": "gemini",
+                        "voice_id": "Aoede",
+                        "voice_settings": {},
+                        "emotion": "neutral",
+                    },
                 ],
                 "scenes": [
                     {"scene_number": 1, "title": "出發探險", "description": "阿海決定探索海底"},
@@ -363,8 +420,22 @@ def upgrade() -> None:
                 "target_age_max": 10,
                 "language": "zh-TW",
                 "characters": [
-                    {"name": "阿諾", "description": "愛發明的小男孩", "voice_provider": "gemini", "voice_id": "Puck", "voice_settings": {}, "emotion": "excited"},
-                    {"name": "時鐘精靈", "description": "守護時間的精靈", "voice_provider": "gemini", "voice_id": "Charon", "voice_settings": {}, "emotion": "neutral"},
+                    {
+                        "name": "阿諾",
+                        "description": "愛發明的小男孩",
+                        "voice_provider": "gemini",
+                        "voice_id": "Puck",
+                        "voice_settings": {},
+                        "emotion": "excited",
+                    },
+                    {
+                        "name": "時鐘精靈",
+                        "description": "守護時間的精靈",
+                        "voice_provider": "gemini",
+                        "voice_id": "Charon",
+                        "voice_settings": {},
+                        "emotion": "neutral",
+                    },
                 ],
                 "scenes": [
                     {"scene_number": 1, "title": "發明時光機", "description": "阿諾完成了時光機"},
