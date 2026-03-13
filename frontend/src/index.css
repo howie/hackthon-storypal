@@ -1,0 +1,79 @@
+/* Google Fonts — Nunito (brand EN), Inter (UI EN), Noto Sans TC (UI ZH) */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;700&family=Inter:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+/* jf open huninn (粉圓體) — brand ZH */
+@import url('https://fonts.jf.com.tw/fonts/jf-openhuninn-2.1/style.css');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ── Brand: Earthy Bear Brown + Dusty Teal + Warm Orange/Yellow ── */
+    --background: 38 53% 93%;          /* brown-50  #F7F2E9 */
+    --foreground: 16 32% 25%;          /* brown-900 #57382C */
+    --card: 35 38% 87%;                /* brown-100 #EEE5D3 */
+    --card-foreground: 16 32% 25%;     /* brown-900 */
+    --popover: 35 38% 87%;             /* brown-100 */
+    --popover-foreground: 16 32% 25%;  /* brown-900 */
+    --primary: 30 43% 47%;             /* brown-500 #A87A45 */
+    --primary-foreground: 0 0% 100%;   /* white */
+    --secondary: 174 22% 39%;          /* teal-500  #4F7C78 */
+    --secondary-foreground: 0 0% 100%; /* white */
+    --muted: 35 38% 87%;               /* brown-100 */
+    --muted-foreground: 22 42% 34%;    /* brown-700 #7B4B32 */
+    --accent: 24 76% 67%;              /* orange-500 #E7A36F */
+    --accent-foreground: 0 0% 100%;    /* white */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 38 45% 61%;              /* brown-300 #CBAC70 */
+    --input: 35 38% 87%;               /* brown-100 */
+    --ring: 30 43% 47%;                /* brown-500 */
+    --radius: 0.75rem;
+
+    /* ── Typography ── */
+    --font-brand-en: 'Nunito', sans-serif;
+    --font-brand-zh: 'jf open huninn', 'Noto Sans TC', sans-serif;
+    --font-ui-en: 'Inter', system-ui, sans-serif;
+    --font-ui-zh: 'Noto Sans TC', 'PingFang TC', 'Noto Sans CJK', sans-serif;
+  }
+
+  .dark {
+    --background: 16 32% 18%;          /* deeper than brown-900 */
+    --foreground: 38 53% 93%;          /* brown-50 */
+    --card: 22 42% 24%;                /* darker than brown-700 */
+    --card-foreground: 38 53% 93%;     /* brown-50 */
+    --popover: 22 42% 24%;
+    --popover-foreground: 38 53% 93%;
+    --primary: 38 45% 61%;             /* brown-300 #CBAC70 (visible on dark bg) */
+    --primary-foreground: 16 32% 25%;  /* brown-900 */
+    --secondary: 176 18% 57%;          /* teal-300 #7BA8A4 */
+    --secondary-foreground: 175 18% 19%; /* teal-900 #283938 */
+    --muted: 22 42% 28%;
+    --muted-foreground: 38 45% 61%;    /* brown-300 */
+    --accent: 20 80% 58%;              /* orange-700 #EA7842 */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 38 53% 93%;
+    --border: 22 42% 34%;              /* brown-700 */
+    --input: 22 42% 28%;
+    --ring: 38 45% 61%;                /* brown-300 */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-ui-zh), var(--font-ui-en);
+  }
+}
+
+/* Respect prefers-reduced-motion for flashing animations */
+@media (prefers-reduced-motion: reduce) {
+  .animate-timeout-pulse {
+    animation: none !important;
+  }
+}
