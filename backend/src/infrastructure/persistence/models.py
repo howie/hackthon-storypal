@@ -146,6 +146,7 @@ class LatencyMetricsModel(Base):
     llm_ttft_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     tts_ttfb_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     realtime_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    interrupt_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships

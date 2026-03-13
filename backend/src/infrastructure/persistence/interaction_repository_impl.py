@@ -206,6 +206,7 @@ class SQLAlchemyInteractionRepository(InteractionRepository):
             llm_ttft_ms=metrics.llm_ttft_ms,
             tts_ttfb_ms=metrics.tts_ttfb_ms,
             realtime_latency_ms=metrics.realtime_latency_ms,
+            interrupt_latency_ms=metrics.interrupt_latency_ms,
             created_at=metrics.created_at,
         )
         self._session.add(model)
@@ -303,5 +304,6 @@ class SQLAlchemyInteractionRepository(InteractionRepository):
             llm_ttft_ms=model.llm_ttft_ms,
             tts_ttfb_ms=model.tts_ttfb_ms,
             realtime_latency_ms=model.realtime_latency_ms,
+            interrupt_latency_ms=model.interrupt_latency_ms,
             created_at=model.created_at,
         )
