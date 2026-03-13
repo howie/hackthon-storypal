@@ -3,9 +3,9 @@ services:
     image: postgres:16-alpine
     container_name: storypal-postgres
     environment:
-      POSTGRES_USER: storypal
-      POSTGRES_PASSWORD: storypal_dev
-      POSTGRES_MULTIPLE_DATABASES: storypal_dev,storypal_test
+      POSTGRES_USER: ${POSTGRES_USER:-storypal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-storypal_dev}
+      POSTGRES_MULTIPLE_DATABASES: ${POSTGRES_DATABASES:-storypal_dev,storypal_test}
     ports:
       - "5432:5432"
     volumes:

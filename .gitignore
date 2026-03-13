@@ -63,6 +63,8 @@ backend/alembic/versions/__pycache__/
 # Terraform
 *.tfstate
 *.tfstate.*
+*.tfvars
+!terraform.tfvars.example
 .terraform/
 .terraform.lock.hcl
 crash.log
