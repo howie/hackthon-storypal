@@ -280,10 +280,9 @@ resource "google_compute_region_network_endpoint_group" "frontend_neg" {
 # ── Backend Services ─────────────────────────────────────────────────────────
 
 resource "google_compute_backend_service" "backend" {
-  project     = var.project_id
-  name        = "storypal-backend-bs"
-  protocol    = "HTTP"
-  timeout_sec = 300
+  project  = var.project_id
+  name     = "storypal-backend-bs"
+  protocol = "HTTP"
 
   backend {
     group = google_compute_region_network_endpoint_group.backend_neg.id
@@ -291,10 +290,9 @@ resource "google_compute_backend_service" "backend" {
 }
 
 resource "google_compute_backend_service" "frontend" {
-  project     = var.project_id
-  name        = "storypal-frontend-bs"
-  protocol    = "HTTP"
-  timeout_sec = 30
+  project  = var.project_id
+  name     = "storypal-frontend-bs"
+  protocol = "HTTP"
 
   backend {
     group = google_compute_region_network_endpoint_group.frontend_neg.id

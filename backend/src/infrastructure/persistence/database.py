@@ -32,7 +32,10 @@ def get_database_url() -> str:
 
 DATABASE_URL = get_database_url()
 
-engine = create_async_engine(DATABASE_URL, echo=False)
+_app_env = os.getenv("APP_ENV", "development")
+_connect_args = {} if _app_env == "production" else {"ssl": False}
+
+engine = create_async_engine(DATABASE_URL, echo=False, connect_args=_connect_args)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
