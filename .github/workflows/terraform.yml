@@ -11,6 +11,7 @@ on:
 
 env:
   TF_VERSION: '1.6'
+  TFLINT_VERSION: 'v0.53.0'
   WORKING_DIR: terraform
 
 jobs:
@@ -31,6 +32,16 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Setup tflint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: ${{ env.TFLINT_VERSION }}
+
+      - name: Run tflint
+        run: |
+          tflint --init
+          tflint
+
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
@@ -47,6 +58,13 @@ jobs:
 
       - name: Terraform Validate
         run: terraform validate
+
+      - name: GCP Pre-apply Check
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          chmod +x scripts/pre-apply-check.sh
+          scripts/pre-apply-check.sh "${PROJECT_ID}"
 
       - name: Terraform Plan
         id: plan

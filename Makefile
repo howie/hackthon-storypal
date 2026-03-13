@@ -1,4 +1,4 @@
-.PHONY: help install install-backend install-frontend dev dev-back dev-front build test lint format check clean manual-test manual-test-stop
+.PHONY: help install install-backend install-frontend dev dev-back dev-front build test lint format check clean manual-test manual-test-stop tf-validate tf-check tf-plan tf-apply db-setup db-create-user db-docker-up db-docker-down
 
 # Colors for output
 CYAN := \033[36m
@@ -33,8 +33,17 @@ help:
 	@echo "  make format           - 格式化程式碼"
 	@echo ""
 	@echo "$(GREEN)資料庫:$(RESET)"
+	@echo "  make db-setup         - 初始化資料庫（借用 voice-lab-postgres）"
 	@echo "  make db-migrate       - 執行資料庫遷移"
 	@echo "  make db-revision      - 建立新的資料庫遷移"
+	@echo "  make db-docker-up     - 啟動 storypal 獨立 postgres（standalone 模式）"
+	@echo "  make db-docker-down   - 停止 storypal postgres"
+	@echo ""
+	@echo "$(GREEN)Terraform:$(RESET)"
+	@echo "  make tf-validate      - tflint + terraform validate"
+	@echo "  make tf-check         - GCP pre-apply 狀態檢查"
+	@echo "  make tf-plan          - 完整驗證 + terraform plan"
+	@echo "  make tf-apply         - 完整驗證 + terraform apply"
 
 # =============================================================================
 # Installation
@@ -153,6 +162,24 @@ typecheck:
 # Database
 # =============================================================================
 
+db-setup: db-create-user db-migrate
+	@echo "$(GREEN)✓ 資料庫初始化完成$(RESET)"
+
+db-create-user:
+	@echo "$(CYAN)在 voice-lab-postgres 建立 storypal 帳號與資料庫...$(RESET)"
+	@printf 'CREATE USER storypal WITH PASSWORD '"'"'storypal_dev'"'"';\nCREATE DATABASE storypal_dev OWNER storypal;\nCREATE DATABASE storypal_test OWNER storypal;\nGRANT ALL PRIVILEGES ON DATABASE storypal_dev TO storypal;\nGRANT ALL PRIVILEGES ON DATABASE storypal_test TO storypal;\n' \
+		| docker exec -i voice-lab-postgres psql -U voicelab postgres 2>/dev/null || true
+	@echo "$(GREEN)✓ storypal user + DB ready$(RESET)"
+
+db-docker-up:
+	@echo "$(CYAN)啟動 storypal postgres...$(RESET)"
+	docker compose up -d postgres
+	@echo "$(GREEN)✓ postgres 啟動完成，接著執行 make db-migrate$(RESET)"
+
+db-docker-down:
+	@echo "$(CYAN)停止 storypal postgres...$(RESET)"
+	docker compose down
+
 db-migrate:
 	@echo "$(CYAN)執行資料庫遷移...$(RESET)"
 	cd backend && uv run alembic upgrade head
@@ -177,6 +204,42 @@ clean:
 	rm -rf frontend/node_modules/.vite
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	@echo "$(GREEN)✓ 清除完成$(RESET)"
+
+# =============================================================================
+# Terraform
+# =============================================================================
+
+TF_DIR := terraform
+TF_PROJECT_ID ?= $(shell cd $(TF_DIR) && terraform output -raw project_id 2>/dev/null || echo "")
+
+tf-validate:
+	@echo "$(CYAN)執行 Terraform 靜態分析...$(RESET)"
+	cd $(TF_DIR) && terraform validate
+	@if command -v tflint >/dev/null 2>&1; then \
+		cd $(TF_DIR) && tflint --init && tflint; \
+	else \
+		echo "$(YELLOW)⚠ tflint 未安裝 — 跳過靜態分析（安裝: brew install tflint）$(RESET)"; \
+	fi
+	@echo "$(GREEN)✓ Terraform 驗證完成$(RESET)"
+
+tf-check:
+	@echo "$(CYAN)執行 GCP Pre-apply 檢查...$(RESET)"
+	@if [ -z "$(TF_PROJECT_ID)" ]; then \
+		echo "$(YELLOW)⚠ 無法取得 project_id — 請提供: make tf-check TF_PROJECT_ID=<project_id>$(RESET)"; \
+		exit 1; \
+	fi
+	$(TF_DIR)/scripts/pre-apply-check.sh "$(TF_PROJECT_ID)"
+	@echo "$(GREEN)✓ GCP Pre-apply 檢查完成$(RESET)"
+
+tf-plan: tf-validate tf-check
+	@echo "$(CYAN)執行 Terraform Plan...$(RESET)"
+	cd $(TF_DIR) && terraform plan
+	@echo "$(GREEN)✓ Terraform Plan 完成$(RESET)"
+
+tf-apply: tf-plan
+	@echo "$(CYAN)執行 Terraform Apply...$(RESET)"
+	cd $(TF_DIR) && terraform apply
+	@echo "$(GREEN)✓ Terraform Apply 完成$(RESET)"
 
 # =============================================================================
 # Manual Testing
