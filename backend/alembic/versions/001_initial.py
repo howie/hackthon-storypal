@@ -25,7 +25,7 @@ def upgrade() -> None:
         "realtime", "cascade", name="interaction_mode", create_type=False
     )
     session_status_enum = postgresql.ENUM(
-        "active", "completed", "failed", "disconnected", name="session_status", create_type=False
+        "active", "completed", "error", "disconnected", name="session_status", create_type=False
     )
 
     interaction_mode_enum.create(op.get_bind(), checkfirst=True)
@@ -108,6 +108,7 @@ def upgrade() -> None:
         sa.Column("llm_ttft_ms", sa.Integer, nullable=True),
         sa.Column("tts_ttfb_ms", sa.Integer, nullable=True),
         sa.Column("realtime_latency_ms", sa.Integer, nullable=True),
+        sa.Column("interrupt_latency_ms", sa.Integer, nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
     op.create_index("idx_latency_turn_id", "latency_metrics", ["turn_id"])
