@@ -75,3 +75,10 @@ Thumbs.db
 
 # Specify state (machine-generated, not for version control)
 .specify/state/
+
+# Claude Code local settings (personal permissions, not for version control)
+.claude/settings.local.json
+
+# Serena cache and memories (machine-generated)
+.serena/cache/
+.serena/memories/
