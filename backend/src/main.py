@@ -13,7 +13,6 @@ from fastapi.responses import FileResponse, Response
 from src.audio_config import configure_ffmpeg
 from src.config import get_settings
 from src.infrastructure.persistence.database import AsyncSessionLocal
-from src.infrastructure.workers.job_worker import JobWorker
 from src.presentation.api import api_router
 from src.presentation.api.middleware.error_handler import (
     RequestIdMiddleware,
@@ -37,15 +36,10 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
-# Global reference to worker for graceful shutdown
-_job_worker: JobWorker | None = None
-
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler for startup and shutdown events."""
-    global _job_worker
-
     # Startup
     print(f"Starting {settings.app_name} in {settings.app_env} mode...")
 
@@ -110,19 +104,10 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as exc:
         print(f"Stuck story job cleanup failed (non-fatal): {exc}")
 
-    # Start job worker for background TTS synthesis
-    _job_worker = JobWorker(session_factory=AsyncSessionLocal, storage_path=storage_path)
-    await _job_worker.start()
-    print("JobWorker started for background TTS synthesis")
-
     yield
 
     # Shutdown
     print(f"Shutting down {settings.app_name}...")
-
-    if _job_worker:
-        await _job_worker.stop()
-        print("JobWorker stopped")
 
 
 app = FastAPI(
