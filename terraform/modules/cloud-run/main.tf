@@ -11,11 +11,13 @@ variable "domain" {
 }
 
 variable "backend_image" {
-  type = string
+  type    = string
+  default = "us-docker.pkg.dev/cloudrun/container/hello:latest"
 }
 
 variable "frontend_image" {
-  type = string
+  type    = string
+  default = "us-docker.pkg.dev/cloudrun/container/hello:latest"
 }
 
 variable "cloud_sql_connection_name" {
@@ -35,6 +37,20 @@ variable "secret_ids" {
   type        = map(string)
 }
 
+# ── Backend Service Account + Secret Access ──────────────────────────────────
+
+resource "google_service_account" "backend_sa" {
+  project      = var.project_id
+  account_id   = "storypal-backend"
+  display_name = "StoryPal Backend Cloud Run SA"
+}
+
+resource "google_project_iam_member" "backend_secret_accessor" {
+  project = var.project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${google_service_account.backend_sa.email}"
+}
+
 # ── Backend Cloud Run Service ────────────────────────────────────────────────
 
 resource "google_cloud_run_v2_service" "backend" {
@@ -43,6 +59,8 @@ resource "google_cloud_run_v2_service" "backend" {
   location = var.region
   ingress  = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 
+  depends_on = [google_project_iam_member.backend_secret_accessor]
+
   lifecycle {
     ignore_changes = [
       template[0].containers[0].image,
@@ -50,6 +68,8 @@ resource "google_cloud_run_v2_service" "backend" {
   }
 
   template {
+    service_account = google_service_account.backend_sa.email
+
     scaling {
       min_instance_count = 0
       max_instance_count = 4
@@ -199,7 +219,7 @@ resource "google_cloud_run_v2_service" "frontend" {
       resources {
         limits = {
           cpu    = "1"
-          memory = "256Mi"
+          memory = "512Mi"
         }
       }
 
@@ -219,6 +239,8 @@ resource "google_cloud_run_v2_service_iam_member" "backend_public" {
   location = var.region
   role     = "roles/run.invoker"
   member   = "allUsers"
+
+  depends_on = [google_cloud_run_v2_service.backend]
 }
 
 resource "google_cloud_run_v2_service_iam_member" "frontend_public" {
@@ -227,6 +249,8 @@ resource "google_cloud_run_v2_service_iam_member" "frontend_public" {
   location = var.region
   role     = "roles/run.invoker"
   member   = "allUsers"
+
+  depends_on = [google_cloud_run_v2_service.frontend]
 }
 
 # ── Serverless NEGs ──────────────────────────────────────────────────────────

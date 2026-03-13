@@ -17,3 +17,13 @@ output "cloud_sql_connection_name" {
   description = "Cloud SQL instance connection name"
   value       = module.cloud_sql.connection_name
 }
+
+output "workload_identity_provider" {
+  description = "Workload Identity Provider (set as GCP_WORKLOAD_IDENTITY_PROVIDER in GitHub Secrets)"
+  value       = module.workload_identity.workload_identity_provider
+}
+
+output "github_actions_service_account" {
+  description = "GitHub Actions Service Account email (set as GCP_SERVICE_ACCOUNT in GitHub Secrets)"
+  value       = module.workload_identity.service_account_email
+}
