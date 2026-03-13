@@ -31,11 +31,12 @@ echo -e "${CYAN}Checking Alembic migration integrity...${RESET}"
 # ─────────────────────────────────────────────────────────────────────────────
 echo -n "  Checking for duplicate revision IDs... "
 
-DUPLICATES=$(grep -rh '^revision:' "$MIGRATIONS_DIR"/*.py 2>/dev/null \
-    | sed 's/revision:[[:space:]]*str[[:space:]]*=[[:space:]]*//' \
+DUPLICATES=$(grep -rh '^revision' "$MIGRATIONS_DIR"/*.py 2>/dev/null \
+    | sed 's/revision[[:space:]]*:[[:space:]]*str[[:space:]]*=[[:space:]]*//' \
+    | sed 's/revision[[:space:]]*=[[:space:]]*//' \
     | tr -d '"'"'" \
     | tr -d ' ' \
-    | sort | uniq -d)
+    | sort | uniq -d || true)
 
 if [ -n "$DUPLICATES" ]; then
     echo -e "${RED}FAILED${RESET}"

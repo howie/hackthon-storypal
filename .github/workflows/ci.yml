@@ -1,0 +1,145 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '20'
+
+jobs:
+  lint-and-check:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Install Dependencies
+        run: uv sync --all-extras
+
+      - name: Run Ruff Linting
+        run: uv run ruff check .
+
+      - name: Run Ruff Format Check
+        run: uv run ruff format --check .
+
+      - name: Run MyPy Type Checking
+        run: uv run mypy src/
+
+  test-backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    needs: [lint-and-check]
+    defaults:
+      run:
+        working-directory: ./backend
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: storypal
+          POSTGRES_PASSWORD: storypal_dev
+          POSTGRES_DB: storypal_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U storypal"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Install Dependencies
+        run: uv sync --all-extras
+
+      - name: Run Tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://storypal:storypal_dev@localhost:5432/storypal_test
+          APP_ENV: development
+          DISABLE_AUTH: "true"
+        run: uv run pytest tests/ -q --tb=short
+
+  test-frontend:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Type Check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint src/
+
+      - name: Run Tests
+        run: npm test -- --run
+
+  ci-status:
+    name: CI Status
+    runs-on: ubuntu-latest
+    needs: [lint-and-check, test-backend, test-frontend]
+    if: always()
+    steps:
+      - name: Check Status
+        env:
+          LINT_RESULT: ${{ needs.lint-and-check.result }}
+          BACKEND_RESULT: ${{ needs.test-backend.result }}
+          FRONTEND_RESULT: ${{ needs.test-frontend.result }}
+        run: |
+          if [[ "$LINT_RESULT" == "success" && \
+                "$BACKEND_RESULT" == "success" && \
+                "$FRONTEND_RESULT" == "success" ]]; then
+            echo "All checks passed!"
+          else
+            echo "Some checks failed."
+            exit 1
+          fi

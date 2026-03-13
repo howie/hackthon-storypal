@@ -1,0 +1,105 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGION: asia-east1
+  BACKEND_SERVICE: storypal-backend
+  FRONTEND_SERVICE: storypal-frontend
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    if: secrets.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        env:
+          AR_REGION: ${{ env.REGION }}
+        run: gcloud auth configure-docker "${AR_REGION}-docker.pkg.dev" --quiet
+
+      - name: Set image tags
+        id: tags
+        env:
+          AR_REGION: ${{ env.REGION }}
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          REGISTRY="${AR_REGION}-docker.pkg.dev/${PROJECT_ID}/storypal"
+          echo "backend=${REGISTRY}/backend:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "frontend=${REGISTRY}/frontend:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Build & Push Backend
+        env:
+          BACKEND_TAG: ${{ steps.tags.outputs.backend }}
+        run: |
+          docker build --platform linux/amd64 \
+            -f backend/Dockerfile \
+            -t "$BACKEND_TAG" \
+            .
+          docker push "$BACKEND_TAG"
+
+      - name: Build & Push Frontend
+        env:
+          FRONTEND_TAG: ${{ steps.tags.outputs.frontend }}
+        run: |
+          docker build --platform linux/amd64 \
+            -f frontend/Dockerfile \
+            -t "$FRONTEND_TAG" \
+            .
+          docker push "$FRONTEND_TAG"
+
+      - name: Deploy Backend to Cloud Run
+        env:
+          SERVICE: ${{ env.BACKEND_SERVICE }}
+          DEPLOY_REGION: ${{ env.REGION }}
+          BACKEND_TAG: ${{ steps.tags.outputs.backend }}
+        run: |
+          gcloud run services update "$SERVICE" \
+            --region "$DEPLOY_REGION" \
+            --image "$BACKEND_TAG"
+
+      - name: Deploy Frontend to Cloud Run
+        env:
+          SERVICE: ${{ env.FRONTEND_SERVICE }}
+          DEPLOY_REGION: ${{ env.REGION }}
+          FRONTEND_TAG: ${{ steps.tags.outputs.frontend }}
+        run: |
+          gcloud run services update "$SERVICE" \
+            --region "$DEPLOY_REGION" \
+            --image "$FRONTEND_TAG"
+
+      - name: Health Check
+        env:
+          SERVICE: ${{ env.BACKEND_SERVICE }}
+          DEPLOY_REGION: ${{ env.REGION }}
+        run: |
+          echo "Waiting for deployment to stabilize..."
+          sleep 15
+          BACKEND_URL=$(gcloud run services describe "$SERVICE" \
+            --region "$DEPLOY_REGION" --format='value(status.url)')
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${BACKEND_URL}/api/v1/health" || true)
+          if [[ "$STATUS" == "200" ]]; then
+            echo "Backend health check passed!"
+          else
+            echo "WARNING: Backend health check returned ${STATUS}"
+          fi

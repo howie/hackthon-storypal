@@ -127,7 +127,7 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
 
         # Update session status
         if self._session:
-            self._session.end_session(SessionStatus.DISCONNECTED)
+            self._session.end(SessionStatus.DISCONNECTED)
             await self._repository.update_session(self._session)
 
         self._latency_tracker.clear_all()
