@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '@/lib/api'
 import * as storypalApi from '@/services/storypalApi'
@@ -22,6 +23,7 @@ interface StoryBookViewerProps {
 }
 
 export function StoryBookViewer({ sessionId, turns, title, onExit }: StoryBookViewerProps) {
+  const { t } = useTranslation('story')
   const [currentPage, setCurrentPage] = useState(0)
   const [loadedUrls, setLoadedUrls] = useState<Map<string, string>>(new Map())
   const preloadedRef = useRef<Set<string>>(new Set())
@@ -124,13 +126,13 @@ export function StoryBookViewer({ sessionId, turns, title, onExit }: StoryBookVi
   if (totalPages === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4">
-        <p className="text-muted-foreground">尚未生成場景圖片</p>
+        <p className="text-muted-foreground">{t('book.noImages')}</p>
         <button
           onClick={onExit}
           className="flex items-center gap-1 text-sm text-primary hover:underline"
         >
           <ArrowLeft className="h-4 w-4" />
-          返回
+          {t('common:actions.back')}
         </button>
       </div>
     )
@@ -149,7 +151,7 @@ export function StoryBookViewer({ sessionId, turns, title, onExit }: StoryBookVi
           className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          返回
+          {t('common:actions.back')}
         </button>
         <h2 className="flex-1 truncate text-sm font-semibold">{title}</h2>
         <span className="text-xs text-muted-foreground">
@@ -171,15 +173,15 @@ export function StoryBookViewer({ sessionId, turns, title, onExit }: StoryBookVi
           // End page (T038)
           <div className="flex h-full flex-col items-center justify-center gap-6 p-8">
             <div className="text-6xl">📖</div>
-            <h3 className="text-2xl font-bold text-foreground">故事結束</h3>
+            <h3 className="text-2xl font-bold text-foreground">{t('book.storyEnd')}</h3>
             <p className="text-sm text-muted-foreground text-center max-w-xs">
-              感謝閱讀《{title}》
+              {t('book.thankReading', { title })}
             </p>
             <button
               onClick={onExit}
               className="mt-4 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
-              返回故事列表
+              {t('book.backToList')}
             </button>
           </div>
         ) : (
@@ -190,7 +192,7 @@ export function StoryBookViewer({ sessionId, turns, title, onExit }: StoryBookVi
               {loadedUrls.has(pages[currentPage].id) ? (
                 <img
                   src={loadedUrls.get(pages[currentPage].id)}
-                  alt={pages[currentPage].scene_description || '場景圖片'}
+                  alt={pages[currentPage].scene_description || t('book.sceneImage')}
                   className="max-h-full max-w-full object-contain rounded-lg shadow-md"
                   style={{ imageRendering: 'pixelated' }}
                 />
@@ -234,7 +236,7 @@ export function StoryBookViewer({ sessionId, turns, title, onExit }: StoryBookVi
           )}
         >
           <ChevronLeft className="h-4 w-4" />
-          上一頁
+          {t('book.prevPage')}
         </button>
 
         {/* Page dots for small page counts, otherwise just numbers */}
@@ -267,7 +269,7 @@ export function StoryBookViewer({ sessionId, turns, title, onExit }: StoryBookVi
               : 'text-foreground hover:bg-muted'
           )}
         >
-          下一頁
+          {t('book.nextPage')}
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>

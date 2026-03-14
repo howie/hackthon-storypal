@@ -4,6 +4,10 @@
  */
 
 import '@testing-library/jest-dom'
+import i18n from '../i18n'
+
+// Force zh-TW in test environment so hardcoded Chinese text assertions pass
+i18n.changeLanguage('zh-TW')
 import { cleanup } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
 

@@ -5,6 +5,7 @@
  * Play/pause/restart controls and voice input toggle for the story player.
  */
 
+import { useTranslation } from 'react-i18next'
 import { Mic, MicOff, Pause, Play, RotateCcw, Square } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -31,6 +32,7 @@ export function StoryControls({
   onStop,
   onRestart,
 }: StoryControlsProps) {
+  const { t } = useTranslation('story')
   const isPlaying = playState === 'playing' || playState === 'waiting_choice' || playState === 'listening'
   const canInteract = isConnected && playState !== 'idle' && playState !== 'ended'
 
@@ -41,7 +43,7 @@ export function StoryControls({
         onClick={onRestart}
         disabled={playState === 'idle'}
         className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
-        title="重新開始"
+        title={t('controls.restart')}
       >
         <RotateCcw className="h-4 w-4" />
       </button>
@@ -52,7 +54,7 @@ export function StoryControls({
           onClick={onPause}
           disabled={!canInteract}
           className="rounded-full bg-primary p-3 text-primary-foreground shadow-md transition-all hover:bg-primary/90 disabled:opacity-30"
-          title="暫停"
+          title={t('controls.pause')}
         >
           <Pause className="h-5 w-5" />
         </button>
@@ -60,7 +62,7 @@ export function StoryControls({
         <button
           onClick={onResume}
           className="rounded-full bg-primary p-3 text-primary-foreground shadow-md transition-all hover:bg-primary/90"
-          title="繼續"
+          title={t('controls.resume')}
         >
           <Play className="h-5 w-5" />
         </button>
@@ -68,7 +70,7 @@ export function StoryControls({
         <button
           disabled
           className="rounded-full bg-muted p-3 text-muted-foreground"
-          title={playState === 'ended' ? '故事結束' : '等待中'}
+          title={playState === 'ended' ? t('controls.storyEnd') : t('controls.waiting')}
         >
           {playState === 'loading' ? (
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -83,7 +85,7 @@ export function StoryControls({
         onClick={onStop}
         disabled={!canInteract}
         className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
-        title="結束故事"
+        title={t('controls.endStory')}
       >
         <Square className="h-4 w-4" />
       </button>
@@ -99,7 +101,7 @@ export function StoryControls({
             : 'text-muted-foreground hover:bg-muted hover:text-foreground',
           !canInteract && 'opacity-30'
         )}
-        title={isListening ? '關閉麥克風' : '開啟麥克風'}
+        title={isListening ? t('controls.micOff') : t('controls.micOn')}
       >
         {isListening ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
       </button>

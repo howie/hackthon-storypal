@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { ttsApi } from '@/lib/api'
 import { listProviders } from '@/services/interactionApi'
@@ -127,6 +128,7 @@ export function ModeSelector({
   disabled = false,
   className = '',
 }: ModeSelectorProps) {
+  const { t } = useTranslation('interaction')
   const [isExpanded, setIsExpanded] = useState(false)
   const [providers, setProviders] = useState<ProvidersState>({
     stt: [],
@@ -158,10 +160,10 @@ export function ModeSelector({
       setProviders((prev) => ({
         ...prev,
         loading: false,
-        error: '無法載入提供者清單',
+        error: t('panel.providerLoadError'),
       }))
     }
-  }, [])
+  }, [t])
 
   // Fetch voices for the selected TTS provider
   const fetchVoices = useCallback(async (provider: string) => {
@@ -178,10 +180,10 @@ export function ModeSelector({
       setTtsVoices((prev) => ({
         ...prev,
         loading: false,
-        error: '無法載入語音清單',
+        error: t('panel.voiceLoadError'),
       }))
     }
-  }, [])
+  }, [t])
 
   // Fetch providers when entering cascade mode (not just when expanded)
   // so that config readiness validation works even before user expands settings
@@ -322,7 +324,7 @@ export function ModeSelector({
     <div className={`rounded-lg border bg-card p-4 ${className}`}>
       {/* Mode Selection */}
       <div className="mb-4">
-        <label className="mb-2 block text-sm font-medium text-foreground">互動模式</label>
+        <label className="mb-2 block text-sm font-medium text-foreground">{t('panel.modeLabel')}</label>
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -349,7 +351,7 @@ export function ModeSelector({
                 <path d="M18.584 5.106a.75.75 0 011.06 0c3.808 3.807 3.808 9.98 0 13.788a.75.75 0 11-1.06-1.06 8.25 8.25 0 000-11.668.75.75 0 010-1.06z" />
                 <path d="M15.932 7.757a.75.75 0 011.061 0 6 6 0 010 8.486.75.75 0 01-1.06-1.061 4.5 4.5 0 000-6.364.75.75 0 010-1.06z" />
               </svg>
-              <span>即時模式</span>
+              <span>{t('panel.realtime')}</span>
               <span className="text-xs opacity-70">V2V API</span>
             </div>
           </button>
@@ -381,7 +383,7 @@ export function ModeSelector({
                   clipRule="evenodd"
                 />
               </svg>
-              <span>串接模式</span>
+              <span>{t('panel.cascade')}</span>
               <span className="text-xs opacity-70">STT → LLM → TTS</span>
             </div>
           </button>
@@ -395,7 +397,7 @@ export function ModeSelector({
           onClick={() => setIsExpanded(!isExpanded)}
           className="flex w-full items-center justify-between text-sm font-medium text-foreground"
         >
-          <span>提供者設定</span>
+          <span>{t('panel.providerSettings')}</span>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
@@ -416,7 +418,7 @@ export function ModeSelector({
               <>
                 {/* Realtime Mode Provider */}
                 <div>
-                  <label className="mb-2 block text-sm text-muted-foreground">V2V 提供者</label>
+                  <label className="mb-2 block text-sm text-muted-foreground">{t('panel.v2vProvider')}</label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
@@ -455,7 +457,7 @@ export function ModeSelector({
 
                 {/* Voice Selection */}
                 <div>
-                  <label className="mb-2 block text-sm text-muted-foreground">語音</label>
+                  <label className="mb-2 block text-sm text-muted-foreground">{t('panel.voice')}</label>
                   <select
                     value={currentRealtimeVoice}
                     onChange={(e) => handleRealtimeVoiceChange(e.target.value)}
@@ -477,7 +479,7 @@ export function ModeSelector({
                 {/* Model Selection (Gemini only) */}
                 {currentRealtimeProvider === 'gemini' && (
                   <div>
-                    <label className="mb-2 block text-sm text-muted-foreground">模型版本</label>
+                    <label className="mb-2 block text-sm text-muted-foreground">{t('panel.modelVersion')}</label>
                     <select
                       value={currentRealtimeModel || 'gemini-2.5-flash-native-audio-preview-12-2025'}
                       onChange={(e) =>
@@ -497,9 +499,9 @@ export function ModeSelector({
                         <option key={model.id} value={model.id}>
                           {model.label}{' '}
                           {model.status === 'preview'
-                            ? '(預覽)'
+                            ? `(${t('panel.preview')})`
                             : model.status === 'deprecated'
-                              ? '(即將退役)'
+                              ? `(${t('panel.deprecated')})`
                               : ''}
                         </option>
                       ))}
@@ -536,7 +538,7 @@ export function ModeSelector({
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       />
                     </svg>
-                    載入提供者...
+                    {t('panel.loadingProviders')}
                   </div>
                 ) : providers.error ? (
                   <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive">
@@ -546,7 +548,7 @@ export function ModeSelector({
                       onClick={fetchProviders}
                       className="ml-2 underline hover:no-underline"
                     >
-                      重試
+                      {t('common:actions.retry')}
                     </button>
                   </div>
                 ) : (
@@ -554,7 +556,7 @@ export function ModeSelector({
                     {/* STT Provider (T053) */}
                     <div>
                       <label className="mb-2 block text-sm text-muted-foreground">
-                        語音辨識 (STT)
+                        {t('panel.stt')}
                       </label>
                       <select
                         value={currentSTTProvider}
@@ -575,14 +577,14 @@ export function ModeSelector({
                             disabled={!p.has_credentials}
                           >
                             {p.display_name}
-                            {!p.has_credentials && ' (尚未設定 API Key)'}
-                            {p.has_credentials && !p.is_valid && ' (API Key 無效)'}
+                            {!p.has_credentials && ` (${t('panel.noApiKey')})`}
+                            {p.has_credentials && !p.is_valid && ` (${t('panel.invalidApiKey')})`}
                           </option>
                         ))}
                       </select>
                       {providers.stt.find((p) => p.name === currentSTTProvider && !p.has_credentials) && (
                         <p className="mt-1 text-xs text-amber-500">
-                          請先在設定頁面設定此提供者的 API Key
+                          {t('panel.apiKeyHint')}
                         </p>
                       )}
                     </div>
@@ -590,7 +592,7 @@ export function ModeSelector({
                     {/* LLM Provider (T054) */}
                     <div>
                       <label className="mb-2 block text-sm text-muted-foreground">
-                        語言模型 (LLM)
+                        {t('panel.llm')}
                       </label>
                       <select
                         value={currentLLMProvider}
@@ -611,14 +613,14 @@ export function ModeSelector({
                             disabled={!p.has_credentials}
                           >
                             {p.display_name}
-                            {!p.has_credentials && ' (尚未設定 API Key)'}
-                            {p.has_credentials && !p.is_valid && ' (API Key 無效)'}
+                            {!p.has_credentials && ` (${t('panel.noApiKey')})`}
+                            {p.has_credentials && !p.is_valid && ` (${t('panel.invalidApiKey')})`}
                           </option>
                         ))}
                       </select>
                       {providers.llm.find((p) => p.name === currentLLMProvider && !p.has_credentials) && (
                         <p className="mt-1 text-xs text-amber-500">
-                          請先在設定頁面設定此提供者的 API Key
+                          {t('panel.apiKeyHint')}
                         </p>
                       )}
                     </div>
@@ -626,7 +628,7 @@ export function ModeSelector({
                     {/* TTS Provider (T055) */}
                     <div>
                       <label className="mb-2 block text-sm text-muted-foreground">
-                        語音合成 (TTS)
+                        {t('panel.tts')}
                       </label>
                       <select
                         value={currentTTSProvider}
@@ -647,21 +649,21 @@ export function ModeSelector({
                             disabled={!p.has_credentials}
                           >
                             {p.display_name}
-                            {!p.has_credentials && ' (尚未設定 API Key)'}
-                            {p.has_credentials && !p.is_valid && ' (API Key 無效)'}
+                            {!p.has_credentials && ` (${t('panel.noApiKey')})`}
+                            {p.has_credentials && !p.is_valid && ` (${t('panel.invalidApiKey')})`}
                           </option>
                         ))}
                       </select>
                       {providers.tts.find((p) => p.name === currentTTSProvider && !p.has_credentials) && (
                         <p className="mt-1 text-xs text-amber-500">
-                          請先在設定頁面設定此提供者的 API Key
+                          {t('panel.apiKeyHint')}
                         </p>
                       )}
                     </div>
 
                     {/* TTS Voice Dropdown */}
                     <div>
-                      <label className="mb-2 block text-sm text-muted-foreground">TTS 語音</label>
+                      <label className="mb-2 block text-sm text-muted-foreground">{t('panel.ttsVoice')}</label>
                       {ttsVoices.loading ? (
                         <div className="flex items-center py-2 text-sm text-muted-foreground">
                           <svg
@@ -684,7 +686,7 @@ export function ModeSelector({
                               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                             />
                           </svg>
-                          載入語音...
+                          {t('panel.loadingVoices')}
                         </div>
                       ) : ttsVoices.voices.length > 0 ? (
                         <select
@@ -697,14 +699,14 @@ export function ModeSelector({
                             disabled:cursor-not-allowed disabled:opacity-50
                           "
                         >
-                          <option value="">選擇語音...</option>
+                          <option value="">{t('panel.selectVoice')}</option>
                           {/* Group by gender */}
                           {['Female', 'Male', undefined].map((gender) => {
                             const genderVoices = ttsVoices.voices.filter(
                               (v) => v.gender === gender || (!gender && !v.gender)
                             )
                             if (genderVoices.length === 0) return null
-                            const genderLabel = gender === 'Female' ? '女聲' : gender === 'Male' ? '男聲' : '其他'
+                            const genderLabel = gender === 'Female' ? t('panel.female') : gender === 'Male' ? t('panel.male') : t('panel.other')
                             return (
                               <optgroup key={gender || 'other'} label={genderLabel}>
                                 {genderVoices.map((voice) => (
@@ -722,7 +724,7 @@ export function ModeSelector({
                           value={currentTTSVoice || DEFAULT_TTS_VOICES[currentTTSProvider] || ''}
                           onChange={(e) => handleTTSVoiceChange(e.target.value)}
                           disabled={disabled}
-                          placeholder={DEFAULT_TTS_VOICES[currentTTSProvider] || '輸入語音 ID'}
+                          placeholder={DEFAULT_TTS_VOICES[currentTTSProvider] || t('panel.voiceIdPlaceholder')}
                           className="
                             w-full rounded-lg border bg-background px-3 py-2 text-sm
                             focus:outline-none focus:ring-2 focus:ring-primary
@@ -735,7 +737,7 @@ export function ModeSelector({
                       )}
                       {!providers.tts.find((p) => p.name === currentTTSProvider)?.has_credentials && (
                         <p className="mt-1 text-xs text-muted-foreground">
-                          設定 API Key 後可選擇更多語音
+                          {t('panel.moreVoicesHint')}
                         </p>
                       )}
                     </div>

@@ -1,5 +1,6 @@
 import { Bell } from 'lucide-react'
 import { UserMenu } from '@/components/auth/UserMenu'
+import { LanguageSwitcher } from './LanguageSwitcher'
 
 export function Header() {
   return (
@@ -8,6 +9,7 @@ export function Header() {
         {/* Breadcrumb or page title can go here */}
       </div>
       <div className="flex items-center gap-4">
+        <LanguageSwitcher />
         <button className="rounded-lg p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
           <Bell className="h-5 w-5" />
         </button>
