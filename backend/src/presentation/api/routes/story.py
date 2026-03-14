@@ -739,7 +739,7 @@ async def generate_story(
 
     template = await _resolve_template(db_session, story_repo)
     llm = _get_default_llm(llm_providers)
-    language = db_session.language or "繁體中文"
+    language = db_session.language or "zh-TW"
 
     story_state = db_session.story_state or {}
     include_choice_points = story_state.get("story_mode") == "branching"
