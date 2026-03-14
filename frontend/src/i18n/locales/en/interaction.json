@@ -48,6 +48,10 @@
     "stopSpeaking": "Stop speaking",
     "startSpeaking": "Start speaking",
     "micError": "Microphone error: {{error}}",
-    "configError": "Failed to get connection settings"
+    "configError": "Failed to get connection settings",
+    "contentLanguage": "Content Language",
+    "contentLanguageHint": "Language for AI tutor responses (independent from UI)",
+    "langZhTW": "Chinese",
+    "langEn": "English"
   }
 }

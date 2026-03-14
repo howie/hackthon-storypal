@@ -40,6 +40,12 @@
     "themeSong": "Theme Song",
     "themeSongDesc": "Coming soon",
     "comingSoon": "Coming soon",
+    "contentLanguage": "Story Language",
+    "contentLanguageHint": "Choose the language for story content and narration (independent from UI language)",
+    "chinese": "Chinese",
+    "chineseDesc": "Traditional Chinese narration",
+    "english": "English",
+    "englishDesc": "English narration",
     "generating": "Preparing story...",
     "generateStory": "Generate Story"
   },

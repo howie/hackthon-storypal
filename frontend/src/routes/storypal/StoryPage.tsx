@@ -217,6 +217,7 @@ function StoryPageInner() {
     stopListPolling,
     clearError,
     reset,
+    setLanguage,
   } = useStoryPalStore()
 
   const [view, setView] = useState<PageView>('list')
@@ -593,6 +594,8 @@ function StoryPageInner() {
         onSelectTemplate={selectTemplate}
         onSubmit={handleSetupSubmit}
         isLoading={isLoading}
+        contentLanguage={language}
+        onContentLanguageChange={setLanguage}
       />
     </div>
   )

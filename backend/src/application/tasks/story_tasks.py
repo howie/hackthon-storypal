@@ -437,11 +437,12 @@ async def synthesize_story_background(
                 else:
                     voice_id = char_voices.get(turn.character_name or "", default_voice)
                 try:
+                    tts_language = db_session.language or "zh-TW"
                     req = TTSRequest(
                         text=turn.content,
                         voice_id=voice_id,
                         provider=tts_provider_name,
-                        language="zh-TW",
+                        language=tts_language,
                         output_format=AudioFormat.MP3,
                     )
                     tts_result = await tts.synthesize(req)

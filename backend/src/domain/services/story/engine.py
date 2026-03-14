@@ -25,15 +25,15 @@ from src.domain.entities.story import (
     StoryTurnType,
 )
 from src.domain.services.story.prompts import (
-    BRANCHING_STORY_SYSTEM_PROMPT,
-    COMPLETE_STORY_SYSTEM_PROMPT,
-    COMPLETE_STORY_USER_PROMPT,
     IMAGE_PROMPT_SYSTEM_PROMPT,
-    STORY_CHOICE_PROMPT,
-    STORY_CONTINUATION_CONTEXT,
-    STORY_OPENING_PROMPT,
-    STORY_QUESTION_RESPONSE_CONTEXT,
-    STORY_SYSTEM_PROMPT_TEMPLATE,
+    get_branching_story_system_prompt,
+    get_complete_story_system_prompt,
+    get_complete_story_user_prompt,
+    get_story_choice_prompt,
+    get_story_continuation_context,
+    get_story_opening_prompt,
+    get_story_question_response_context,
+    get_story_system_prompt_template,
 )
 
 logger = logging.getLogger(__name__)
@@ -79,18 +79,21 @@ class StoryEngine:
         self,
         template: StoryTemplate,
         language: str = "繁體中文",
+        *,
+        language_code: str = "zh-TW",
     ) -> tuple[list[StorySegment], SceneInfo | None, bool]:
         """Generate opening story segments from template.
 
         Args:
             template: Story template with characters, scenes, and prompts.
-            language: Language for the story output.
+            language: Language name for the story output (e.g. "繁體中文", "English").
+            language_code: Language code for prompt selection (e.g. "zh-TW", "en").
 
         Returns:
             Tuple of (story segments, optional scene info, is_complete).
         """
-        system_prompt = self._build_system_prompt(template)
-        user_prompt = STORY_OPENING_PROMPT.format(language=language)
+        system_prompt = self._build_system_prompt(template, language_code=language_code)
+        user_prompt = get_story_opening_prompt(language_code).format(language=language)
 
         logger.debug(
             "[StoryEngine][start_story] system_prompt=\n%s\nuser_prompt=\n%s",
@@ -113,6 +116,7 @@ class StoryEngine:
         language: str = "繁體中文",
         *,
         include_choice_points: bool = False,
+        language_code: str = "zh-TW",
     ) -> list[StorySegment]:
         """Generate a complete story from template.
 
@@ -124,8 +128,9 @@ class StoryEngine:
 
         Args:
             template: Story template with characters, scenes, and prompts.
-            language: Language for the story output.
+            language: Language name for the story output.
             include_choice_points: Keep choice_prompt segments if True.
+            language_code: Language code for prompt selection.
 
         Returns:
             List of story segments.
@@ -134,12 +139,17 @@ class StoryEngine:
         story_context = template.system_prompt or template.description
 
         base_prompt = (
-            BRANCHING_STORY_SYSTEM_PROMPT if include_choice_points else COMPLETE_STORY_SYSTEM_PROMPT
+            get_branching_story_system_prompt(language_code)
+            if include_choice_points
+            else get_complete_story_system_prompt(language_code)
         )
+        section_label = "Story Setting" if language_code.startswith("en") else "故事設定"
+        chars_label = "Characters" if language_code.startswith("en") else "角色列表"
         system_prompt = (
-            base_prompt + f"\n\n## 故事設定\n{story_context}\n\n## 角色列表\n{characters_info}"
+            base_prompt
+            + f"\n\n## {section_label}\n{story_context}\n\n## {chars_label}\n{characters_info}"
         )
-        user_prompt = COMPLETE_STORY_USER_PROMPT.format(language=language)
+        user_prompt = get_complete_story_user_prompt(language_code).format(language=language)
 
         logger.debug(
             "[StoryEngine][generate_complete_story] system_prompt=\n%s\nuser_prompt=\n%s",
@@ -185,7 +195,7 @@ class StoryEngine:
         current_scene = session.current_scene or "未知場景"
 
         # Separate story context from user-controlled content (prompt injection defence)
-        context_prompt = STORY_CONTINUATION_CONTEXT.format(
+        context_prompt = get_story_continuation_context(session.language).format(
             story_summary=story_summary,
             current_scene=current_scene,
         )
@@ -220,7 +230,7 @@ class StoryEngine:
         characters_info = self._format_characters(session.characters_config)
 
         # Separate story context from user-controlled content (prompt injection defence)
-        context_prompt = STORY_QUESTION_RESPONSE_CONTEXT.format(
+        context_prompt = get_story_question_response_context(session.language).format(
             story_summary=story_summary,
             characters_info=characters_info,
         )
@@ -252,7 +262,7 @@ class StoryEngine:
         story_summary = session.story_state.get("summary", "故事剛開始")
         current_scene = session.current_scene or "未知場景"
 
-        user_prompt = STORY_CHOICE_PROMPT.format(
+        user_prompt = get_story_choice_prompt(session.language).format(
             story_summary=story_summary,
             current_scene=current_scene,
         )
@@ -363,12 +373,12 @@ class StoryEngine:
 
         return result
 
-    def _build_system_prompt(self, template: StoryTemplate) -> str:
+    def _build_system_prompt(self, template: StoryTemplate, *, language_code: str = "zh-TW") -> str:
         """Build the system prompt from template."""
         characters_info = self._format_characters(template.characters)
         story_context = template.system_prompt or template.description
 
-        return STORY_SYSTEM_PROMPT_TEMPLATE.format(
+        return get_story_system_prompt_template(language_code).format(
             age_min=template.target_age_min,
             age_max=template.target_age_max,
             story_context=story_context,

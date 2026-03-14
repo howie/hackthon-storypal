@@ -30,9 +30,10 @@ _TUTOR_AVAILABLE_VOICES = ["Kore", "Puck", "Aoede", "Charon", "Fenrir", "Leda"]
 async def get_tutor_games(
     _current_user: CurrentUserDep,
     child_age: int = Query(default=4, ge=1, le=8),
+    language: str = Query(default="zh-TW"),
 ) -> list[TutorGame]:
     """Return the list of games available for the given child age."""
-    games = get_available_games(child_age)
+    games = get_available_games(child_age, language=language)
     return [TutorGame(**g) for g in games]
 
 
@@ -46,6 +47,7 @@ async def get_tutor_v2v_config(
     child_age: int = Query(default=4, ge=1, le=8),
     voice: str = Query(default="Kore"),
     game_type: str | None = Query(default=None),
+    language: str = Query(default="zh-TW"),
 ) -> TutorV2vConfig:
     """Return Gemini Live API config for the tutor v2v WebSocket connection.
 
@@ -63,8 +65,8 @@ async def get_tutor_v2v_config(
             detail="Set GEMINI_API_KEY env var.",
         )
 
-    system_prompt = build_tutor_system_prompt(child_age, game_type=game_type)
-    games = get_available_games(child_age)
+    system_prompt = build_tutor_system_prompt(child_age, game_type=game_type, language=language)
+    games = get_available_games(child_age, language=language)
 
     # NOTE: api_key is intentionally omitted from the response (BE-C#1).
     return TutorV2vConfig(
