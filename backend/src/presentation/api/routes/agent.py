@@ -6,6 +6,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from src.infrastructure.agents.story_agent import run_story_agent
+from src.presentation.api.middleware.auth import CurrentUserDep
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,10 @@ class StoryAgentResponse(BaseModel):
 
 
 @router.post("/story", response_model=StoryAgentResponse)
-async def create_story_with_agent(request: StoryAgentRequest) -> StoryAgentResponse:
+async def create_story_with_agent(
+    request: StoryAgentRequest,
+    current_user: CurrentUserDep,
+) -> StoryAgentResponse:
     """Use ADK agent to create a children's story.
 
     The agent orchestrates story text generation, image creation,
@@ -42,5 +46,6 @@ async def create_story_with_agent(request: StoryAgentRequest) -> StoryAgentRespo
     result = await run_story_agent(
         theme=request.theme,
         age_group=request.age_group,
+        user_id=str(current_user.id),
     )
     return StoryAgentResponse(**result)

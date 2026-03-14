@@ -6,6 +6,7 @@ with Gemini LLM, Imagen image generation, and Gemini TTS.
 
 import logging
 import os
+from typing import Any
 
 from google.adk.agents import LlmAgent
 from google.adk.runners import Runner
@@ -15,6 +16,10 @@ from google.genai import types
 from src.config import get_settings
 
 logger = logging.getLogger(__name__)
+
+# Set the API key early so the module-level LlmAgent has credentials at construction time
+_settings = get_settings()
+os.environ.setdefault("GOOGLE_API_KEY", _settings.gemini_api_key)
 
 
 def generate_story_text(
@@ -116,7 +121,7 @@ async def run_story_agent(
     theme: str,
     age_group: str = "3-6",
     user_id: str = "anonymous",
-) -> dict:
+) -> dict[str, Any]:
     """Run the ADK story agent to create a story.
 
     Args:
@@ -127,11 +132,6 @@ async def run_story_agent(
     Returns:
         Dictionary with the agent's response including story content
     """
-    settings = get_settings()
-
-    # Set the API key for the agent's model
-    os.environ.setdefault("GOOGLE_API_KEY", settings.gemini_api_key)
-
     runner = Runner(
         agent=story_agent,
         app_name="storypal",

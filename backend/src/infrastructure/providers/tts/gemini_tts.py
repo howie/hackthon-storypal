@@ -540,20 +540,11 @@ class GeminiTTSProvider(BaseTTSProvider):
             return False
 
         try:
-            # Simple check — list models to verify API key works
-            response = await self._client.aio.models.generate_content(
-                model=self._model,
-                contents="test",
-                config=types.GenerateContentConfig(
-                    response_modalities=["AUDIO"],
-                    speech_config=types.SpeechConfig(
-                        voice_config=types.VoiceConfig(
-                            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Kore")
-                        )
-                    ),
-                ),
-            )
-            return response is not None
+            # Lightweight check — list models to verify API key works
+            # Avoid generate_content as it consumes real quota on every health check
+            async for _ in await self._client.aio.models.list(config={"page_size": 1}):
+                break
+            return True
         except Exception:
             return False
 

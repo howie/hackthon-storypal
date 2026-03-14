@@ -15,6 +15,7 @@ from src.application.interfaces.image_provider import (
     IImageProvider,
     ImageGenerationResult,
 )
+from src.domain.errors import QuotaExceededError
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,10 @@ class GeminiImagenProvider(IImageProvider):
         except Exception as e:
             error_message = str(e)
             if "429" in error_message or "RESOURCE_EXHAUSTED" in error_message:
-                raise QuotaExceededError(f"Imagen API quota exceeded (429): {error_message}") from e
+                raise QuotaExceededError(
+                    provider="gemini-imagen",
+                    original_error=error_message,
+                ) from e
             logger.error("Imagen API error: %s", error_message)
             raise ImageProviderError(f"Imagen API error: {error_message}") from e
 
@@ -94,7 +98,3 @@ class GeminiImagenProvider(IImageProvider):
 
 class ImageProviderError(Exception):
     """Error from image provider."""
-
-
-class QuotaExceededError(ImageProviderError):
-    """Imagen API quota exceeded (429)."""
