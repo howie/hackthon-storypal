@@ -41,6 +41,11 @@ logger = logging.getLogger(__name__)
 CostCallback = Callable[[str, LLMResponse], Awaitable[None]]
 
 
+def _language_display_name(code: str) -> str:
+    """Map language code to display name for LLM prompts."""
+    return "English" if code.lower().startswith("en") else "繁體中文"
+
+
 @dataclass
 class StorySegment:
     """A parsed segment from LLM story response."""
@@ -78,22 +83,21 @@ class StoryEngine:
     async def start_story(
         self,
         template: StoryTemplate,
-        language: str = "繁體中文",
-        *,
-        language_code: str = "zh-TW",
+        language: str = "zh-TW",
     ) -> tuple[list[StorySegment], SceneInfo | None, bool]:
         """Generate opening story segments from template.
 
         Args:
             template: Story template with characters, scenes, and prompts.
-            language: Language name for the story output (e.g. "繁體中文", "English").
-            language_code: Language code for prompt selection (e.g. "zh-TW", "en").
+            language: Language code for the story (e.g. "zh-TW", "en").
 
         Returns:
             Tuple of (story segments, optional scene info, is_complete).
         """
-        system_prompt = self._build_system_prompt(template, language_code=language_code)
-        user_prompt = get_story_opening_prompt(language_code).format(language=language)
+        system_prompt = self._build_system_prompt(template, language=language)
+        user_prompt = get_story_opening_prompt(language).format(
+            language=_language_display_name(language),
+        )
 
         logger.debug(
             "[StoryEngine][start_story] system_prompt=\n%s\nuser_prompt=\n%s",
@@ -113,10 +117,9 @@ class StoryEngine:
     async def generate_complete_story(
         self,
         template: StoryTemplate,
-        language: str = "繁體中文",
+        language: str = "zh-TW",
         *,
         include_choice_points: bool = False,
-        language_code: str = "zh-TW",
     ) -> list[StorySegment]:
         """Generate a complete story from template.
 
@@ -128,9 +131,8 @@ class StoryEngine:
 
         Args:
             template: Story template with characters, scenes, and prompts.
-            language: Language name for the story output.
+            language: Language code for the story (e.g. "zh-TW", "en").
             include_choice_points: Keep choice_prompt segments if True.
-            language_code: Language code for prompt selection.
 
         Returns:
             List of story segments.
@@ -139,17 +141,19 @@ class StoryEngine:
         story_context = template.system_prompt or template.description
 
         base_prompt = (
-            get_branching_story_system_prompt(language_code)
+            get_branching_story_system_prompt(language)
             if include_choice_points
-            else get_complete_story_system_prompt(language_code)
+            else get_complete_story_system_prompt(language)
         )
-        section_label = "Story Setting" if language_code.startswith("en") else "故事設定"
-        chars_label = "Characters" if language_code.startswith("en") else "角色列表"
+        section_label = "Story Setting" if language.startswith("en") else "故事設定"
+        chars_label = "Characters" if language.startswith("en") else "角色列表"
         system_prompt = (
             base_prompt
             + f"\n\n## {section_label}\n{story_context}\n\n## {chars_label}\n{characters_info}"
         )
-        user_prompt = get_complete_story_user_prompt(language_code).format(language=language)
+        user_prompt = get_complete_story_user_prompt(language).format(
+            language=_language_display_name(language),
+        )
 
         logger.debug(
             "[StoryEngine][generate_complete_story] system_prompt=\n%s\nuser_prompt=\n%s",
@@ -373,12 +377,12 @@ class StoryEngine:
 
         return result
 
-    def _build_system_prompt(self, template: StoryTemplate, *, language_code: str = "zh-TW") -> str:
+    def _build_system_prompt(self, template: StoryTemplate, *, language: str = "zh-TW") -> str:
         """Build the system prompt from template."""
         characters_info = self._format_characters(template.characters)
         story_context = template.system_prompt or template.description
 
-        return get_story_system_prompt_template(language_code).format(
+        return get_story_system_prompt_template(language).format(
             age_min=template.target_age_min,
             age_max=template.target_age_max,
             story_context=story_context,
