@@ -177,13 +177,14 @@ Gemini's TTS API supports expressive, multi-voice narration ideal for children's
 - **Emotion & style control**: By embedding SSML-like cues in the prompt (e.g., "speak excitedly", "whisper mysteriously"), we achieved noticeably different emotional tones without changing the voice itself.
 - **Multi-channel orchestration**: Each story character is assigned a consistent voice ID. The backend streams TTS segments in sequence, stitching them into a seamless audio experience so children hear a "cast" of characters, not a single narrator.
 
-### 2. Imagen 4 — Story Illustration Generation
+### 2. Imagen 4 — Pixel Art for 16×16 LED Display
 
-Generating consistent, child-safe illustrations across an entire story required significant prompt engineering:
+StoryPal's physical companion device uses a 16×16 LED pixel matrix to display story illustrations. Generating recognizable images at such extreme low resolution required extensive prompt engineering:
 
-- **Style consistency**: We prepend a shared style prefix (e.g., "watercolor children's book illustration, soft pastel palette, rounded characters") to every image prompt. This keeps the visual style cohesive across 5–8 illustrations per story.
-- **Character continuity**: Describing recurring characters with fixed visual anchors ("a small girl with short black hair and a red raincoat") helps Imagen maintain recognizable characters across scenes, though perfect consistency remains challenging.
-- **Safety guardrails**: Imagen 4's built-in safety filters align well with children's content. We added an additional prompt-level constraint ("age-appropriate, no scary imagery") and found that explicit positive framing ("friendly dragon") works better than negative constraints ("not scary dragon").
+- **16×16 pixel constraint**: Every illustration must be legible on a 16×16 LED grid — only 256 pixels total. We tested numerous prompt strategies to produce clean, high-contrast pixel art that remains identifiable at this resolution (e.g., "16x16 pixel art, single subject, minimal detail, bold colors, black outline").
+- **Style consistency**: We prepend a shared pixel-art style prefix to every image prompt to maintain a cohesive visual language across story scenes, though achieving consistent character representation at 16×16 remains an open challenge.
+- **Room for improvement**: Despite extensive prompt iteration, results are inconsistent — some subjects render well while others become unrecognizable blobs at 16×16. Better prompt templates, fine-tuning, or a post-processing downscale pipeline are potential next steps.
+- **Safety guardrails**: Imagen 4's built-in safety filters align well with children's content. Explicit positive framing ("friendly dragon") works better than negative constraints ("not scary dragon").
 
 ### 3. Live API — Real-Time Voice Interaction
 
