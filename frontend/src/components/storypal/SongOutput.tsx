@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { AlertTriangle, Check, Copy, Loader2, Music } from 'lucide-react'
 import type { SongContent } from '@/types/storypal'
 import { cn } from '@/lib/utils'
@@ -18,6 +19,7 @@ interface SongOutputProps {
 }
 
 export function SongOutput({ songContent, isGenerating = false, error, onGenerate }: SongOutputProps) {
+  const { t } = useTranslation('story')
   const [copiedField, setCopiedField] = useState<'lyrics' | 'suno_prompt' | null>(null)
 
   const handleCopy = useCallback(async (text: string, field: 'lyrics' | 'suno_prompt') => {
@@ -32,7 +34,7 @@ export function SongOutput({ songContent, isGenerating = false, error, onGenerat
       <div className="rounded-lg border bg-card p-6">
         <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          兒歌生成中...
+          {t('song.generating')}
         </div>
         <div className="mt-4 space-y-3">
           <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
@@ -55,7 +57,7 @@ export function SongOutput({ songContent, isGenerating = false, error, onGenerat
             onClick={onGenerate}
             className="mt-3 rounded-lg border border-destructive/30 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
           >
-            重試
+            {t('common:actions.retry')}
           </button>
         )}
       </div>
@@ -67,13 +69,13 @@ export function SongOutput({ songContent, isGenerating = false, error, onGenerat
     return (
       <div className="rounded-lg border border-dashed bg-card p-6 text-center">
         <Music className="mx-auto mb-2 h-8 w-8 text-muted-foreground/50" />
-        <p className="text-sm text-muted-foreground">還沒有生成兒歌</p>
+        <p className="text-sm text-muted-foreground">{t('song.noSong')}</p>
         {onGenerate && (
           <button
             onClick={onGenerate}
             className="mt-3 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            生成主題兒歌
+            {t('song.generateSong')}
           </button>
         )}
       </div>
@@ -88,11 +90,13 @@ export function SongOutput({ songContent, isGenerating = false, error, onGenerat
         <div className="mb-2 flex items-center justify-between">
           <h3 className="flex items-center gap-2 text-sm font-semibold">
             <Music className="h-4 w-4 text-primary" />
-            歌詞
+            {t('song.lyrics')}
           </h3>
           <CopyButton
             copied={copiedField === 'lyrics'}
             onClick={() => handleCopy(songContent.lyrics, 'lyrics')}
+            copiedLabel={t('song.copied')}
+            copyLabel={t('song.copy')}
           />
         </div>
         <pre className="whitespace-pre-wrap rounded-md bg-muted/50 p-4 text-sm leading-relaxed">
@@ -107,6 +111,8 @@ export function SongOutput({ songContent, isGenerating = false, error, onGenerat
           <CopyButton
             copied={copiedField === 'suno_prompt'}
             onClick={() => handleCopy(songContent.suno_prompt, 'suno_prompt')}
+            copiedLabel={t('song.copied')}
+            copyLabel={t('song.copy')}
           />
         </div>
         <div className="rounded-md bg-muted/50 p-4 font-mono text-xs leading-relaxed text-muted-foreground">
@@ -119,7 +125,7 @@ export function SongOutput({ songContent, isGenerating = false, error, onGenerat
 
 // ─── Copy Button ───────────────────────────────────────────────────────────
 
-function CopyButton({ copied, onClick }: { copied: boolean; onClick: () => void }) {
+function CopyButton({ copied, onClick, copiedLabel, copyLabel }: { copied: boolean; onClick: () => void; copiedLabel: string; copyLabel: string }) {
   return (
     <button
       onClick={onClick}
@@ -133,12 +139,12 @@ function CopyButton({ copied, onClick }: { copied: boolean; onClick: () => void 
       {copied ? (
         <>
           <Check className="h-3 w-3" />
-          已複製
+          {copiedLabel}
         </>
       ) : (
         <>
           <Copy className="h-3 w-3" />
-          複製
+          {copyLabel}
         </>
       )}
     </button>

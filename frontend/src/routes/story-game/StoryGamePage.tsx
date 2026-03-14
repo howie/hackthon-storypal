@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft,
   BookOpen,
@@ -36,6 +37,8 @@ type PageView = 'list' | 'browse' | 'playing'
 type ContentTab = 'story' | 'song' | 'interactive_choices' | 'qa'
 
 function StoryGamePageInner() {
+  const { t } = useTranslation('story')
+
   const {
     sessions,
     session,
@@ -136,10 +139,10 @@ function StoryGamePageInner() {
   // ── Playing view ────────────────────────────────────────────────────────
   if (view === 'playing') {
     const contentTabs: { key: ContentTab; label: string; icon: typeof Music; disabled?: boolean }[] = [
-      { key: 'story', label: '故事', icon: BookOpen },
-      { key: 'song', label: '兒歌', icon: Music, disabled: true },
-      { key: 'interactive_choices', label: '互動選擇', icon: Theater },
-      { key: 'qa', label: 'Q&A', icon: HelpCircle },
+      { key: 'story', label: t('game.tabStory'), icon: BookOpen },
+      { key: 'song', label: t('game.tabSong'), icon: Music, disabled: true },
+      { key: 'interactive_choices', label: t('game.tabChoices'), icon: Theater },
+      { key: 'qa', label: t('game.tabQA'), icon: HelpCircle },
     ]
 
     return (
@@ -174,7 +177,7 @@ function StoryGamePageInner() {
               className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <ArrowLeft className="h-4 w-4" />
-              結束
+              {t('game.end')}
             </button>
           </div>
         </div>
@@ -222,9 +225,9 @@ function StoryGamePageInner() {
       <StorySessionList
         sessions={gameSessions}
         isLoading={isLoadingSessions}
-        headerTitle="語音互動遊戲"
-        newButtonLabel="開始互動"
-        emptyMessage="還沒有互動遊戲記錄，點擊「開始互動」開始！"
+        headerTitle={t('game.title')}
+        newButtonLabel={t('game.startInteraction')}
+        emptyMessage={t('game.emptyMessage')}
         onNewStory={() => setView('browse')}
         onOpenSession={(s) => { void handleOpenSession(s) }}
       />
@@ -235,8 +238,8 @@ function StoryGamePageInner() {
   return (
     <TemplateBrowser
       onBack={() => setView('list')}
-      title="選擇互動範本"
-      subtitle="選一個故事範本，開始即時語音互動遊戲"
+      title={t('game.selectTemplate')}
+      subtitle={t('game.selectTemplateSubtitle')}
       actionButtons={
         <button
           onClick={() => { void handleStartInteractive() }}
@@ -248,7 +251,7 @@ function StoryGamePageInner() {
           ) : (
             <Gamepad2 className="h-4 w-4" />
           )}
-          開始互動
+          {t('game.startInteraction')}
         </button>
       }
     />

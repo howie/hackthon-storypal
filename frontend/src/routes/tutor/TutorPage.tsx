@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Download, Mic, MicOff, Sparkles } from 'lucide-react'
 import { getTutorV2vConfig, getTutorLiveWsUrl, getTutorGames } from '@/services/tutorApi'
 import type { TutorGame } from '@/services/tutorApi'
@@ -50,6 +51,8 @@ const QUICK_QUESTIONS = [
 // =============================================================================
 
 export function TutorPage() {
+  const { t } = useTranslation('interaction')
+
   // ── Config state ─────────────────────────────────────────────────────────
   const [childAge, setChildAge] = useState(4)
   const [selectedVoice, setSelectedVoice] = useState('Kore')
@@ -211,11 +214,11 @@ export function TutorPage() {
       recorder.start()
       setIsPromptPanelOpen(false)
     } catch (err) {
-      setConfigError(err instanceof Error ? err.message : '無法取得連線設定')
+      setConfigError(err instanceof Error ? err.message : t('tutor.configError'))
     } finally {
       setIsLoadingConfig(false)
     }
-  }, [childAge, selectedVoice, selectedGame, gemini, availableVoices.length, systemPrompt, recorder])
+  }, [childAge, selectedVoice, selectedGame, gemini, availableVoices.length, systemPrompt, recorder, t])
 
   const handleDisconnect = useCallback(() => {
     microphone.stopRecording()
@@ -285,15 +288,15 @@ export function TutorPage() {
         <div className="flex-1">
           <h1 className="flex items-center gap-2 text-lg font-semibold">
             <Sparkles className="h-5 w-5 text-primary" />
-            適齡萬事通
+            {t('tutor.title')}
           </h1>
-          <p className="text-xs text-muted-foreground">語音對話小天老師</p>
+          <p className="text-xs text-muted-foreground">{t('tutor.subtitle')}</p>
         </div>
 
         {/* Age selector */}
         <div className="flex items-center gap-1.5">
           <label htmlFor="tutor-age" className="text-xs text-muted-foreground">
-            年齡
+            {t('tutor.age')}
           </label>
           <select
             id="tutor-age"
@@ -313,7 +316,7 @@ export function TutorPage() {
         {/* Voice selector */}
         <div className="flex items-center gap-1.5">
           <label htmlFor="tutor-voice" className="text-xs text-muted-foreground">
-            語音
+            {t('tutor.voiceLabel')}
           </label>
           <select
             id="tutor-voice"
@@ -333,7 +336,7 @@ export function TutorPage() {
         {/* Game selector */}
         <div className="flex items-center gap-1.5">
           <label htmlFor="tutor-game" className="text-xs text-muted-foreground">
-            遊戲
+            {t('tutor.game')}
           </label>
           <select
             id="tutor-game"
@@ -342,7 +345,7 @@ export function TutorPage() {
             disabled={isConnected}
             className="rounded-md border bg-background px-2 py-1 text-sm focus:border-primary focus:outline-none disabled:opacity-50"
           >
-            <option value="">自由聊天</option>
+            <option value="">{t('tutor.freeChat')}</option>
             {availableGames.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}
@@ -365,10 +368,10 @@ export function TutorPage() {
           <button
             onClick={recorder.downloadWav}
             className="flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors hover:bg-muted"
-            title="下載對話錄音"
+            title={t('tutor.downloadRecordingTitle')}
           >
             <Download className="h-3.5 w-3.5" />
-            下載錄音
+            {t('tutor.downloadRecording')}
           </button>
         )}
 
@@ -402,13 +405,13 @@ export function TutorPage() {
             {!isConnected ? (
               <>
                 <Sparkles className="h-12 w-12 text-muted-foreground/30" />
-                <p className="text-sm text-muted-foreground">連線後即可開始對話</p>
+                <p className="text-sm text-muted-foreground">{t('tutor.connectToStart')}</p>
               </>
             ) : (
               <>
                 <Sparkles className="h-12 w-12 text-primary/40" />
-                <p className="text-sm font-medium">小天老師來了！</p>
-                <p className="text-xs text-muted-foreground">按麥克風說話，或點選下方快速問題</p>
+                <p className="text-sm font-medium">{t('tutor.tutorReady')}</p>
+                <p className="text-xs text-muted-foreground">{t('tutor.tutorReadyHint')}</p>
                 {/* Quick questions */}
                 <div className="flex max-w-md flex-wrap justify-center gap-2">
                   {QUICK_QUESTIONS.map((q) => (
@@ -486,7 +489,7 @@ export function TutorPage() {
                 />
               ))}
             </div>
-            <span>小天老師說話中...</span>
+            <span>{t('tutor.aiSpeaking')}</span>
           </div>
         )}
 
@@ -513,8 +516,8 @@ export function TutorPage() {
               className="rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               {isLoadingConfig || gemini.status === 'connecting' || gemini.status === 'setup_sent'
-                ? '連線中...'
-                : '開始對話'}
+                ? t('tutor.connecting')
+                : t('tutor.startConversation')}
             </button>
           ) : (
             <>
@@ -528,7 +531,7 @@ export function TutorPage() {
                     ? 'scale-110 bg-red-500 shadow-red-500/40'
                     : 'bg-primary shadow-primary/30 hover:scale-105'
                 )}
-                title={microphone.isRecording ? '停止說話' : '開始說話'}
+                title={microphone.isRecording ? t('tutor.stopSpeaking') : t('tutor.startSpeaking')}
               >
                 {microphone.isRecording ? (
                   <MicOff className="h-7 w-7" />
@@ -543,7 +546,7 @@ export function TutorPage() {
                 onClick={handleDisconnect}
                 className="rounded-full border bg-background px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted"
               >
-                結束對話
+                {t('tutor.endConversation')}
               </button>
             </>
           )}
@@ -554,14 +557,14 @@ export function TutorPage() {
         )}
         {microphone.error !== null && (
           <div className="w-full rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            麥克風錯誤：{microphone.error}
+            {t('tutor.micError', { error: microphone.error })}
           </div>
         )}
         {isConnected && !microphone.isRecording && (
-          <p className="text-xs text-muted-foreground">點擊麥克風開始說話</p>
+          <p className="text-xs text-muted-foreground">{t('tutor.clickMicToSpeak')}</p>
         )}
         {microphone.isRecording && (
-          <p className="text-xs text-red-500">錄音中，再點一次結束說話</p>
+          <p className="text-xs text-red-500">{t('tutor.recording')}</p>
         )}
       </div>
     </div>

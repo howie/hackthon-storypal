@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Download, Loader2, Pause, Play, Volume2, VolumeX } from 'lucide-react'
 import axios from 'axios'
 import { api } from '@/lib/api'
@@ -45,6 +46,7 @@ interface StaticStoryPlayerProps {
 }
 
 export function StaticStoryPlayer({ sessionId, turns, title, onExit, onComplete }: StaticStoryPlayerProps) {
+  const { t } = useTranslation('story')
   const [currentTurnIndex, setCurrentTurnIndex] = useState(-1)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
@@ -141,7 +143,7 @@ export function StaticStoryPlayer({ sessionId, turns, title, onExit, onComplete 
             '[StaticStoryPlayer] All audio loads failed:',
             failedTurnCountRef.current, 'failed,', playedTurnCountRef.current, 'played'
           )
-          setPlaybackError('音檔載入失敗，請返回重試')
+          setPlaybackError(t('common:errors.audioLoadFailed'))
         }
         failedTurnCountRef.current = 0
         playedTurnCountRef.current = 0
@@ -210,14 +212,14 @@ export function StaticStoryPlayer({ sessionId, turns, title, onExit, onComplete 
         // 401 → auth 過期，停止播放讓 interceptor redirect
         if (axios.isAxiosError(err) && err.response?.status === 401) {
           setIsPlaying(false)
-          setPlaybackError('登入已過期，請重新登入')
+          setPlaybackError(t('common:errors.loginExpired'))
           return
         }
 
         // 連續失敗 N 次 → 提前停止，避免白跑剩餘 turn
         if (failedTurnCountRef.current >= MAX_CONSECUTIVE_FAILURES) {
           setIsPlaying(false)
-          setPlaybackError('音檔載入失敗，請返回重試')
+          setPlaybackError(t('common:errors.audioLoadFailed'))
           return
         }
 
@@ -226,7 +228,7 @@ export function StaticStoryPlayer({ sessionId, turns, title, onExit, onComplete 
         }
       }
     },
-    [sessionId, isMuted, cleanupAudio, audioOutputDeviceId, onComplete]
+    [sessionId, isMuted, cleanupAudio, audioOutputDeviceId, onComplete, t]
   )
 
   const handlePlay = useCallback(() => {
@@ -293,11 +295,11 @@ export function StaticStoryPlayer({ sessionId, turns, title, onExit, onComplete 
       URL.revokeObjectURL(blobUrl)
     } catch (err) {
       console.error('Story audio download failed:', err)
-      setDownloadError('音檔下載失敗，請稍後再試')
+      setDownloadError(t('common:errors.audioDownloadFailed'))
     } finally {
       setIsDownloading(false)
     }
-  }, [sessionId, title])
+  }, [sessionId, title, t])
 
   /** Shared logic: dismiss choice prompt and advance to next turn */
   const advanceFromChoice = useCallback(() => {
@@ -368,7 +370,7 @@ export function StaticStoryPlayer({ sessionId, turns, title, onExit, onComplete 
           className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          返回
+          {t('common:actions.back')}
         </button>
         <h2 className="flex-1 truncate text-base font-semibold">{title}</h2>
       </div>
@@ -376,7 +378,7 @@ export function StaticStoryPlayer({ sessionId, turns, title, onExit, onComplete 
       {/* No-audio banner */}
       {!hasAnyAudio && playableTurns.length > 0 && (
         <div className="mx-4 mt-2 rounded-lg bg-amber-50 px-4 py-2 text-sm text-amber-700 border border-amber-200">
-          故事尚未產生音檔，請返回重新合成音訊。
+          {t('player.noAudioBanner')}
         </div>
       )}
 
@@ -400,7 +402,7 @@ export function StaticStoryPlayer({ sessionId, turns, title, onExit, onComplete 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {playableTurns.length === 0 ? (
           <div className="py-12 text-center text-sm text-muted-foreground">
-            還沒有故事內容
+            {t('player.noContent')}
           </div>
         ) : (
           playableTurns.map((turn, index) => (
@@ -419,7 +421,7 @@ export function StaticStoryPlayer({ sessionId, turns, title, onExit, onComplete 
             >
               {turn.turn_type === 'choice_prompt' ? (
                 <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-amber-600">選擇點</p>
+                  <p className="text-xs font-semibold text-amber-600">{t('player.choicePoint')}</p>
                   <p className="text-sm leading-relaxed">{turn.content}</p>
                   {turn.choice_options && (
                     <div className="flex flex-wrap gap-1.5 mt-1">
@@ -478,7 +480,7 @@ export function StaticStoryPlayer({ sessionId, turns, title, onExit, onComplete 
           </div>
           <div className="flex justify-center">
             <span className="text-xs text-muted-foreground">
-              {choiceCountdown} 秒後自動繼續...
+              {t('player.autoNextSeconds', { count: choiceCountdown })}
             </span>
           </div>
         </div>
@@ -514,7 +516,7 @@ export function StaticStoryPlayer({ sessionId, turns, title, onExit, onComplete 
               className="flex items-center gap-2 rounded-full bg-primary px-6 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
             >
               <Pause className="h-4 w-4" />
-              暫停
+              {t('player.pause')}
             </button>
           ) : (
             <button
@@ -523,7 +525,7 @@ export function StaticStoryPlayer({ sessionId, turns, title, onExit, onComplete 
               className="flex items-center gap-2 rounded-full bg-primary px-6 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50"
             >
               <Play className="h-4 w-4" />
-              {currentTurnIndex < 0 ? '開始播放' : currentTurnIndex >= totalTurns ? '重新播放' : '繼續播放'}
+              {currentTurnIndex < 0 ? t('player.startPlay') : currentTurnIndex >= totalTurns ? t('player.replayPlay') : t('player.resumePlay')}
             </button>
           )}
 
@@ -531,7 +533,7 @@ export function StaticStoryPlayer({ sessionId, turns, title, onExit, onComplete 
             onClick={() => { void handleDownload() }}
             disabled={isDownloading || totalTurns === 0}
             className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-            title="下載故事音檔"
+            title={t('player.downloadAudio')}
           >
             {isDownloading ? (
               <Loader2 className="h-4 w-4 animate-spin" />

@@ -1,0 +1,44 @@
+{
+  "nav": {
+    "home": "首頁",
+    "voiceStory": "語音故事",
+    "voiceGame": "語音互動遊戲",
+    "tutor": "適齡萬事通",
+    "magicDJ": "Magic DJ",
+    "experimental": "實驗"
+  },
+  "sidebar": {
+    "expand": "展開側邊欄",
+    "collapse": "收合側邊欄",
+    "version": "StoryPal v1.0.0"
+  },
+  "landing": {
+    "welcome": "歡迎來到 StoryPal",
+    "subtitle": "AI 驅動的互動故事與智慧家教，專為孩子設計",
+    "voiceStoryDesc": "AI 為孩子量身打造互動故事，搭配多角色語音和精美插圖",
+    "voiceGameDesc": "讓孩子在故事世界中做選擇，體驗沉浸式互動冒險",
+    "tutorDesc": "AI 家教用孩子聽得懂的方式回答各種好奇問題"
+  },
+  "actions": {
+    "back": "返回",
+    "retry": "重試",
+    "delete": "刪除",
+    "cancel": "取消",
+    "confirm": "確認",
+    "save": "儲存",
+    "copy": "複製",
+    "copied": "已複製"
+  },
+  "errors": {
+    "loadFailed": "載入失敗",
+    "saveFailed": "儲存失敗，請重試",
+    "loginExpired": "登入已過期，請重新登入",
+    "audioLoadFailed": "音檔載入失敗，請返回重試",
+    "audioDownloadFailed": "音檔下載失敗，請稍後再試"
+  },
+  "status": {
+    "completed": "已完成",
+    "active": "進行中",
+    "paused": "暫停"
+  }
+}

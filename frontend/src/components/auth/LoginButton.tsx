@@ -3,6 +3,7 @@
  * T046: Create LoginButton component (Google SSO)
  */
 
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/authStore'
 import { Spinner } from '@/components/shared/Spinner'
 
@@ -12,6 +13,7 @@ interface LoginButtonProps {
 
 export function LoginButton({ className = '' }: LoginButtonProps) {
   const { login, isLoading } = useAuthStore()
+  const { t } = useTranslation('auth')
 
   return (
     <button
@@ -46,7 +48,7 @@ export function LoginButton({ className = '' }: LoginButtonProps) {
           />
         </svg>
       )}
-      <span>使用 Google 帳號登入</span>
+      <span>{t('login.googleLogin')}</span>
     </button>
   )
 }

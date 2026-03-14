@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft,
   BookOpen,
@@ -55,6 +56,7 @@ function ReviewView({
   onSynthesize: () => void
   onTurnsUpdated: () => void
 }) {
+  const { t } = useTranslation('story')
   const editableTurns = useMemo(
     () => turns.filter((t) => t.turn_type !== 'child_response' && t.turn_type !== 'question'),
     [turns]
@@ -92,11 +94,11 @@ function ReviewView({
       )
       onTurnsUpdated()
     } catch {
-      setSaveError('儲存失敗，請重試')
+      setSaveError(t('common:errors.saveFailed'))
     } finally {
       setIsSavingEdits(false)
     }
-  }, [session, editableTurns, editedTurns, onTurnsUpdated])
+  }, [session, editableTurns, editedTurns, onTurnsUpdated, t])
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -106,9 +108,9 @@ function ReviewView({
           className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          返回
+          {t('common:actions.back')}
         </button>
-        <h2 className="text-lg font-semibold">{session?.title ?? '故事預覽'}</h2>
+        <h2 className="text-lg font-semibold">{session?.title ?? t('page.storyPreview')}</h2>
       </div>
 
       {(error || saveError) && (
@@ -141,7 +143,7 @@ function ReviewView({
           onClick={onBack}
           className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted"
         >
-          捨棄
+          {t('page.discard')}
         </button>
         {hasEdits && (
           <button
@@ -154,13 +156,13 @@ function ReviewView({
             ) : (
               <Save className="h-4 w-4" />
             )}
-            儲存修改
+            {t('page.saveEdits')}
           </button>
         )}
         <button
           onClick={onSynthesize}
           disabled={isSynthesizingAudio || hasEdits}
-          title={hasEdits ? '請先儲存修改' : undefined}
+          title={hasEdits ? t('page.saveFirstHint') : undefined}
           className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {isSynthesizingAudio ? (
@@ -168,7 +170,7 @@ function ReviewView({
           ) : (
             <Play className="h-4 w-4" />
           )}
-          合成音訊並播放
+          {t('page.synthAndPlay')}
         </button>
       </div>
     </div>
@@ -180,6 +182,7 @@ function ReviewView({
 // =============================================================================
 
 function StoryPageInner() {
+  const { t } = useTranslation('story')
   const {
     sessions,
     session,
@@ -386,15 +389,15 @@ function StoryPageInner() {
         {isGeneratingStory && (
           <>
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-            <p className="text-sm text-muted-foreground">正在產生故事...</p>
+            <p className="text-sm text-muted-foreground">{t('page.generatingStory')}</p>
           </>
         )}
         {isSynthesizingAudio && (
           <div className="w-full max-w-sm space-y-3">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">合成音訊中...</span>
+              <span className="text-muted-foreground">{t('page.synthAudio')}</span>
               <span className="font-mono text-primary">
-                {synthesisProgress.completed} / {synthesisProgress.total} 音段
+                {synthesisProgress.completed} / {synthesisProgress.total} {t('session.audioSegments')}
               </span>
             </div>
             {synthesisProgress.total > 0 && (
@@ -412,7 +415,7 @@ function StoryPageInner() {
             <div className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <ImageIcon className="h-4 w-4" />
-                生成場景圖片中...
+                {t('page.genImages')}
               </span>
               {imageGenerationProgress.total > 0 && (
                 <span className="font-mono text-primary">
@@ -445,7 +448,7 @@ function StoryPageInner() {
               }}
               className="text-sm text-primary hover:underline"
             >
-              重試
+              {t('common:actions.retry')}
             </button>
           </div>
         )}
@@ -507,8 +510,8 @@ function StoryPageInner() {
                 onClick={async () => {
                   if (!session) return
                   const ok = await confirm({
-                    title: '重新生成圖片',
-                    message: '重新生成圖片將覆蓋現有圖片，確定繼續？',
+                    title: t('page.regenImagesTitle'),
+                    message: t('page.regenImagesConfirm'),
                   })
                   if (ok) {
                     imageGenTriggeredRef.current = null // Allow re-trigger
@@ -516,17 +519,17 @@ function StoryPageInner() {
                   }
                 }}
                 disabled={isGeneratingImages}
-                title="重新生成場景圖片"
+                title={t('page.regenImagesTitle')}
                 className="flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs font-medium shadow-sm transition-colors hover:bg-accent border-border"
               >
                 <RefreshCw className={cn('h-3.5 w-3.5', isGeneratingImages && 'animate-spin')} />
-                重新生成
+                {t('page.regenImagesBtn')}
               </button>
             )}
             <button
               onClick={() => setView('book')}
               disabled={!hasImages}
-              title={hasImages ? '繪本模式' : '請先生成場景圖片'}
+              title={hasImages ? t('page.bookModeTitle') : t('page.bookModeWaitImages')}
               className={cn(
                 'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium shadow-sm transition-colors',
                 hasImages
@@ -535,7 +538,7 @@ function StoryPageInner() {
               )}
             >
               <BookOpen className="h-3.5 w-3.5" />
-              繪本
+              {t('page.bookMode')}
             </button>
           </div>
           <ConfirmDialog {...dialogProps} />
@@ -553,9 +556,9 @@ function StoryPageInner() {
       <StorySessionList
         sessions={storySessions}
         isLoading={isLoadingSessions}
-        headerTitle="我的故事"
-        newButtonLabel="新增故事"
-        emptyMessage="還沒有故事，點擊「新增故事」開始！"
+        headerTitle={t('session.myStories')}
+        newButtonLabel={t('session.newStory')}
+        emptyMessage={t('session.emptyMessage')}
         onNewStory={() => { selectTemplate(null); setView('custom_setup') }}
         onOpenSession={(s) => { void handleOpenSession(s) }}
         showJobCards
@@ -573,14 +576,14 @@ function StoryPageInner() {
           className="mb-4 flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          返回
+          {t('common:actions.back')}
         </button>
         <div className="flex items-center gap-2">
           <Sparkles className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold">新增故事</h1>
+          <h1 className="text-2xl font-bold">{t('page.newStoryTitle')}</h1>
         </div>
         <p className="text-muted-foreground">
-          選擇故事風格，填入孩子的資訊，AI 將生成專屬故事
+          {t('page.newStorySubtitle')}
         </p>
       </div>
       <StorySetupForm

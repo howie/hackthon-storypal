@@ -76,3 +76,12 @@ docker build --platform linux/amd64 -f frontend/Dockerfile -t <image> .
 - **Only Gemini providers**: LLM, TTS, Imagen, Live — no Azure/OpenAI/ElevenLabs
 - **Storage**: Local (dev) / GCS (prod)
 - **Auth**: Google OAuth with `DISABLE_AUTH=true` for dev
+
+
+- 必須使用 Claude Code 內建工具，禁止用 Bash 執行等效指令：
+- **Grep** 取代 `grep` / `rg`
+- **Read** 取代 `cat` / `head` / `tail`
+- **Edit** 取代 `sed` / `awk`
+- **Glob** 取代 `find` / `ls`
+- **Write** 取代 `echo` / heredoc
+- Bash 工具僅用於系統指令與終端操作（如 `make`、`docker`、`git`）

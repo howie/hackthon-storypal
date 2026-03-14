@@ -5,20 +5,22 @@ import {
   ChevronRight,
   BookOpen,
   Sparkles,
-  Gamepad2,
+  Disc3,
   Home,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
-
-const navigationItems = [
-  { name: '首頁', href: '/', icon: Home },
-  { name: '語音故事', href: '/storypal', icon: BookOpen },
-  { name: '語音互動遊戲', href: '/story-game', icon: Gamepad2, label: '實驗' },
-  { name: '適齡萬事通', href: '/tutor', icon: Sparkles },
-]
 
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const { t } = useTranslation()
+
+  const navigationItems = [
+    { name: t('nav.home'), href: '/', icon: Home },
+    { name: t('nav.voiceStory'), href: '/storypal', icon: BookOpen },
+    { name: t('nav.magicDJ'), href: '/magic-dj', icon: Disc3 },
+    { name: t('nav.tutor'), href: '/tutor', icon: Sparkles },
+  ]
 
   return (
     <aside
@@ -44,7 +46,7 @@ export function Sidebar() {
         <div className="space-y-0.5">
           {navigationItems.map((item) => (
             <NavLink
-              key={item.name}
+              key={item.href}
               to={item.href}
               end={item.href === '/'}
               title={isCollapsed ? item.name : undefined}
@@ -60,14 +62,7 @@ export function Sidebar() {
             >
               <item.icon className="h-3.5 w-3.5 shrink-0" />
               {!isCollapsed && (
-                <span className="flex items-center gap-2">
-                  {item.name}
-                  {'label' in item && item.label && (
-                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">
-                      {item.label}
-                    </span>
-                  )}
-                </span>
+                <span>{item.name}</span>
               )}
             </NavLink>
           ))}
@@ -77,7 +72,7 @@ export function Sidebar() {
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="flex w-full items-center justify-center rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-          title={isCollapsed ? '展開側邊欄' : '收合側邊欄'}
+          title={isCollapsed ? t('sidebar.expand') : t('sidebar.collapse')}
         >
           {isCollapsed ? (
             <ChevronRight className="h-4 w-4" />
@@ -87,7 +82,7 @@ export function Sidebar() {
         </button>
         {!isCollapsed && (
           <p className="mt-2 text-center text-xs text-muted-foreground">
-            StoryPal v1.0.0
+            {t('sidebar.version')}
           </p>
         )}
       </div>
