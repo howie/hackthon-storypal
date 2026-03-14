@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { LoginButton } from '@/components/auth/LoginButton'
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 import { useLoginRedirect } from '@/hooks/useLoginRedirect'
 
 export function LoginPage() {
@@ -29,7 +30,10 @@ export function LoginPage() {
   }, [clearError])
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background">
+      <div className="absolute right-4 top-4">
+        <LanguageSwitcher />
+      </div>
       <div className="w-full max-w-md space-y-8 rounded-xl border bg-card p-8 shadow-lg">
         {/* Logo / Title */}
         <div className="text-center">
@@ -59,13 +63,6 @@ export function LoginPage() {
           {/* Google login button */}
           <LoginButton className="w-full justify-center" />
 
-          {/* Domain restriction notice */}
-          <div className="rounded-lg bg-muted/50 p-4 text-sm">
-            <p className="font-medium">{t('login.restriction')}</p>
-            <p className="mt-1 text-muted-foreground">
-              {t('login.restrictionDesc')}
-            </p>
-          </div>
         </div>
 
         {/* Footer */}
