@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from src.presentation.api.routes import (
+    agent,
     auth,
     health,
     story,
@@ -16,6 +17,7 @@ api_router = APIRouter()
 
 # Include sub-routers
 api_router.include_router(health.router, tags=["Health"])
+api_router.include_router(agent.router)
 api_router.include_router(auth.router)
 api_router.include_router(story.router)
 api_router.include_router(story_ws.router, prefix="/story", tags=["StoryPal WebSocket"])

@@ -1,4 +1,4 @@
-"""Gemini TTS Provider using Google AI API.
+"""Gemini TTS Provider using Google GenAI SDK.
 
 Implements TTS synthesis using Gemini 2.5 TTS models with support for:
 - 30 prebuilt voices
@@ -7,21 +7,19 @@ Implements TTS synthesis using Gemini 2.5 TTS models with support for:
 """
 
 import asyncio
-import base64
-import contextlib
 import io
 import logging
 import os
 from collections.abc import AsyncGenerator
 
-import httpx
+from google import genai
+from google.genai import types
 from pydub import AudioSegment
 
 from src.domain.entities.audio import AudioData, AudioFormat
 from src.domain.entities.tts import TTSRequest
 from src.domain.entities.voice import Gender, VoiceProfile
 from src.domain.errors import QuotaExceededError, RateLimitError
-from src.domain.services.usage_tracker import parse_rate_limit_headers
 from src.infrastructure.providers.tts.base import BaseTTSProvider
 
 logger = logging.getLogger(__name__)
@@ -33,7 +31,7 @@ _gemini_request_semaphore = asyncio.Semaphore(_GEMINI_MAX_CONCURRENT)
 
 
 class GeminiTTSProvider(BaseTTSProvider):
-    """Gemini TTS provider using Google AI API.
+    """Gemini TTS provider using Google GenAI SDK.
 
     Features:
     - Models: gemini-2.5-pro-preview-tts (high quality), gemini-2.5-flash-preview-tts (low latency)
@@ -42,8 +40,6 @@ class GeminiTTSProvider(BaseTTSProvider):
     - Output: PCM 24kHz (converted to MP3/WAV/OGG)
     - Limits: Input max 4000 bytes, output max ~655 seconds
     """
-
-    API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
     # Gemini TTS input limit is 4000 bytes (not characters).
     # CJK characters are 3 bytes each in UTF-8, so ~1333 characters max.
@@ -56,7 +52,6 @@ class GeminiTTSProvider(BaseTTSProvider):
     # Retry config for 429 rate limit errors (independent counter)
     _MAX_429_RETRIES = 3
     _429_RETRY_BACKOFFS = (1.0, 2.0, 4.0)
-    _429_MAX_RETRY_AFTER = 30  # cap Retry-After header value for sleep
 
     # Gemini voices curated for Taiwanese Chinese (台灣中文).
     # Based on Google official descriptions and Chinese voice quality testing.
@@ -174,7 +169,7 @@ class GeminiTTSProvider(BaseTTSProvider):
         self._model = model
         self._fallback_model = fallback_model or None  # Treat empty string as None
         self._primary_quota_exhausted = False
-        self._client = httpx.AsyncClient(timeout=180.0)
+        self._client = genai.Client(api_key=api_key)
 
     @staticmethod
     def _validate_input_byte_length(text_content: str) -> None:
@@ -232,7 +227,7 @@ class GeminiTTSProvider(BaseTTSProvider):
             raise  # Fallback also exhausted or no fallback configured
 
     async def _synthesize_with_model(self, model: str, request: TTSRequest) -> AudioData:
-        """Synthesize speech using a specific Gemini TTS model.
+        """Synthesize speech using a specific Gemini TTS model via GenAI SDK.
 
         Args:
             model: Gemini model name to use for synthesis
@@ -241,8 +236,6 @@ class GeminiTTSProvider(BaseTTSProvider):
         Returns:
             AudioData with synthesized audio
         """
-        url = f"{self.API_URL}/{model}:generateContent"
-
         # Build text content with optional style prompt
         text_content = request.text
         if request.style_prompt:
@@ -265,18 +258,15 @@ class GeminiTTSProvider(BaseTTSProvider):
             request.style_prompt or "(none)",
         )
 
-        payload = {
-            "contents": [{"parts": [{"text": text_content}]}],
-            "generationConfig": {
-                "responseModalities": ["AUDIO"],
-                "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice_name}}},
-            },
-        }
-
-        headers = {
-            "Content-Type": "application/json",
-            "x-goog-api-key": self._api_key,
-        }
+        # Build GenAI SDK config for TTS
+        config = types.GenerateContentConfig(
+            response_modalities=["AUDIO"],
+            speech_config=types.SpeechConfig(
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice_name)
+                )
+            ),
+        )
 
         # Retry loop for transient finishReason=OTHER errors
         last_error: ValueError | None = None
@@ -287,130 +277,92 @@ class GeminiTTSProvider(BaseTTSProvider):
             for retry_429 in range(self._MAX_429_RETRIES + 1):
                 try:
                     async with _gemini_request_semaphore:
-                        response = await self._client.post(url, json=payload, headers=headers)
-                except httpx.TimeoutException:
-                    logger.warning(
-                        "Gemini TTS timeout: model=%s, text_bytes=%d, text_chars=%d, timeout=%.0fs",
-                        model,
-                        byte_length,
-                        char_length,
-                        self._client.timeout.read or 180,
-                    )
-                    raise
+                        response = await self._client.aio.models.generate_content(
+                            model=model,
+                            contents=text_content,
+                            config=config,
+                        )
+                    break  # Success, exit 429 retry loop
+                except Exception as e:
+                    error_message = str(e)
 
-                # Capture rate limit headers from every response
-                self._last_rate_limit_headers = parse_rate_limit_headers(response.headers, "gemini")
+                    # Detect 429 rate limit errors
+                    if "429" in error_message or "RESOURCE_EXHAUSTED" in error_message:
+                        # Detect daily quota exhaustion — retrying won't help
+                        if "per_day" in error_message.lower():
+                            logger.warning(
+                                "Gemini TTS daily quota exhausted: model=%s, %s",
+                                model,
+                                error_message,
+                            )
+                            raise QuotaExceededError(
+                                provider="gemini",
+                                original_error=error_message,
+                            ) from e
 
-                if response.status_code != 429:
-                    break  # Not a 429, proceed to normal handling
+                        if retry_429 < self._MAX_429_RETRIES:
+                            wait = self._429_RETRY_BACKOFFS[retry_429]
+                            logger.warning(
+                                "Gemini TTS RPM rate limited on attempt %d/%d, "
+                                "retrying after %.1fs: %s",
+                                retry_429 + 1,
+                                self._MAX_429_RETRIES + 1,
+                                wait,
+                                error_message,
+                            )
+                            await asyncio.sleep(wait)
+                            continue
 
-                # Extract 429 error details
-                try:
-                    error_json = response.json()
-                    error_message_429 = error_json.get("error", {}).get("message", response.text)
-                except Exception:
-                    error_message_429 = response.text
+                        # All 429 retries exhausted
+                        raise RateLimitError(
+                            provider="gemini",
+                            retry_after=None,
+                            original_error=error_message,
+                        ) from e
 
-                # Detect daily quota exhaustion — retrying won't help
-                if "per_day" in error_message_429.lower():
-                    logger.warning(
-                        "Gemini TTS daily quota exhausted: model=%s, %s",
-                        model,
-                        error_message_429,
-                    )
-                    raise QuotaExceededError(
-                        provider="gemini",
-                        original_error=error_message_429,
-                    )
+                    # Detect quota exhaustion in other error types
+                    if "exceeded your current quota" in error_message.lower():
+                        raise QuotaExceededError(
+                            provider="gemini",
+                            original_error=error_message,
+                        ) from e
 
-                if retry_429 < self._MAX_429_RETRIES:
-                    # Determine wait: prefer Retry-After header (capped), else backoff
-                    wait = self._429_RETRY_BACKOFFS[retry_429]
-                    if "retry-after" in response.headers:
-                        with contextlib.suppress(ValueError, TypeError):
-                            ra = int(response.headers["retry-after"])
-                            wait = min(float(ra), float(self._429_MAX_RETRY_AFTER))
-
-                    logger.warning(
-                        "Gemini TTS RPM rate limited on attempt %d/%d, retrying after %.1fs: %s",
-                        retry_429 + 1,
-                        self._MAX_429_RETRIES + 1,
-                        wait,
-                        error_message_429,
-                    )
-                    await asyncio.sleep(wait)
-                    continue
-
-                # All 429 retries exhausted → RateLimitError (RPM)
-                retry_after_val = None
-                if "retry-after" in response.headers:
-                    with contextlib.suppress(ValueError, TypeError):
-                        retry_after_val = int(response.headers["retry-after"])
-
+                    raise RuntimeError(f"Gemini TTS API error: {error_message}") from e
+            else:
+                # 429 retry loop exhausted without break
                 raise RateLimitError(
                     provider="gemini",
-                    retry_after=retry_after_val,
-                    original_error=error_message_429,
+                    retry_after=None,
+                    original_error="429 retries exhausted",
                 )
-
-            if response.status_code != 200:
-                # Extract error details from Gemini API response
-                try:
-                    error_json = response.json()
-                    error_message = error_json.get("error", {}).get("message", response.text)
-                except Exception:
-                    error_message = response.text
-
-                # Detect quota exhaustion in non-429 responses (e.g., status 400)
-                is_quota_exhausted = "exceeded your current quota" in error_message.lower()
-                if is_quota_exhausted:
-                    retry_after = None
-                    if "retry-after" in response.headers:
-                        with contextlib.suppress(ValueError, TypeError):
-                            retry_after = int(response.headers["retry-after"])
-
-                    raise QuotaExceededError(
-                        provider="gemini",
-                        retry_after=retry_after,
-                        original_error=error_message,
-                    )
-
-                raise RuntimeError(
-                    f"Gemini TTS API error (status {response.status_code}): {error_message}"
-                )
-
-            result = response.json()
 
             # Check for empty or blocked candidates
-            candidates = result.get("candidates", [])
-            if not candidates:
-                logger.error("Gemini TTS returned no candidates: %s", result)
+            if not response.candidates:
+                logger.error("Gemini TTS returned no candidates")
                 raise ValueError(
                     "Gemini TTS returned no candidates. "
                     "The input may have been blocked by safety filters."
                 )
 
-            candidate = candidates[0]
-            finish_reason = candidate.get("finishReason", "")
+            candidate = response.candidates[0]
+            finish_reason = candidate.finish_reason
 
             # Detect safety-blocked responses (candidates exist but no content)
-            if "content" not in candidate:
-                if finish_reason == "SAFETY":
+            if not candidate.content:
+                if str(finish_reason) == "SAFETY":
                     raise ValueError(
                         "Gemini TTS blocked the request due to safety filters. "
                         "Try rephrasing the text or using a different style prompt."
                     )
 
                 # finishReason=OTHER may be transient — retry
-                byte_len = len(text_content.encode("utf-8"))
-                char_len = len(text_content)
                 logger.warning(
                     "Gemini TTS finishReason=%s on attempt %d/%d (text: %d bytes, %d chars)",
                     finish_reason,
                     attempt + 1,
                     self._MAX_RETRIES + 1,
-                    byte_len,
-                    char_len,
+                    byte_length,
+                    char_length,
                 )
                 last_error = ValueError(
                     f"Gemini TTS returned no audio content (finishReason={finish_reason}). "
@@ -425,12 +377,14 @@ class GeminiTTSProvider(BaseTTSProvider):
 
             # Extract audio data from response
             try:
-                audio_base64 = candidate["content"]["parts"][0]["inlineData"]["data"]
-            except (KeyError, IndexError) as e:
+                parts = candidate.content.parts
+                if not parts:
+                    raise IndexError("No parts in response")
+                part = parts[0]
+                pcm_data = part.inline_data.data  # type: ignore[union-attr]
+            except (AttributeError, IndexError) as e:
                 logger.error("Unexpected Gemini TTS response structure: %s", candidate)
                 raise ValueError(f"Invalid API response structure: {e}") from e
-
-            pcm_data = base64.b64decode(audio_base64)
 
             # Convert PCM to target format
             audio_data = await self._convert_pcm_to_format(pcm_data, request.output_format)
@@ -586,15 +540,25 @@ class GeminiTTSProvider(BaseTTSProvider):
             return False
 
         try:
-            # Simple API connectivity check
-            url = f"{self.API_URL}/{self._model}"
-            headers = {"x-goog-api-key": self._api_key}
-            response = await self._client.get(url, headers=headers)
-            # 200 or 404 both indicate the API is reachable
-            return response.status_code in (200, 404)
+            # Simple check — list models to verify API key works
+            response = await self._client.aio.models.generate_content(
+                model=self._model,
+                contents="test",
+                config=types.GenerateContentConfig(
+                    response_modalities=["AUDIO"],
+                    speech_config=types.SpeechConfig(
+                        voice_config=types.VoiceConfig(
+                            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Kore")
+                        )
+                    ),
+                ),
+            )
+            return response is not None
         except Exception:
             return False
 
     async def close(self) -> None:
-        """Close the HTTP client."""
-        await self._client.aclose()
+        """Close the GenAI client."""
+        # GenAI SDK client doesn't require explicit close for sync usage,
+        # but we keep the method for interface compatibility.
+        pass

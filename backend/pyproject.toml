@@ -49,6 +49,10 @@ dependencies = [
     "Pillow>=10.0.0",
     # Cloud Storage
     "google-cloud-storage>=2.10.0",
+    # Google GenAI SDK (official Gemini SDK)
+    "google-genai>=1.0.0",
+    # Google Agent Development Kit
+    "google-adk>=1.0.0",
 ]
 
 [project.optional-dependencies]
