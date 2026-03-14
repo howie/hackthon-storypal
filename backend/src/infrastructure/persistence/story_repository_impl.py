@@ -15,6 +15,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.domain.entities.story import StorySessionStatus
 from src.domain.repositories.story_repository import IStoryRepository
 from src.infrastructure.persistence.models import (
     StoryCostEventModel,
@@ -413,6 +414,15 @@ class StoryRepositoryImpl(IStoryRepository):
         if turn:
             turn.audio_path = audio_path
             await self._db.commit()
+
+    async def count_completed_sessions(self, user_id: uuid.UUID) -> int:
+        result = await self._db.execute(
+            select(func.count()).where(
+                StorySessionModel.user_id == user_id,
+                StorySessionModel.status == StorySessionStatus.COMPLETED,
+            )
+        )
+        return result.scalar_one()
 
     async def get_turns_for_session(self, session_id: uuid.UUID) -> list[Any]:
         result = await self._db.execute(
