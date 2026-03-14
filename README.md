@@ -10,9 +10,9 @@ StoryPal uses Google Gemini's multimodal capabilities — LLM, TTS, Imagen, and 
 
 | Feature | Description |
 |---------|-------------|
-| **Voice Story** | AI crafts personalized interactive stories with multi-character voices and beautiful illustrations |
+| **Voice Story** | AI crafts personalized interactive stories with multi-character voices and beautiful illustrations (Creative Storyteller Agent) |
 | **Voice Game** | Children make choices in the story world for an immersive interactive adventure |
-| **AI Tutor** | AI tutor answers all kinds of curious questions in a child-friendly way |
+| **AI Tutor** | AI tutor answers all kinds of curious questions in a child-friendly way (Live Agent) |
 
 ## Tech Stack
 
@@ -80,6 +80,58 @@ Open **http://localhost:5173** — the landing page shows all three features.
 
 ## Architecture Overview
 
+```mermaid
+graph TB
+    subgraph Users
+        U[👦 Children / Parents]
+    end
+
+    subgraph GCP["Google Cloud Platform"]
+        subgraph "Cloud Run"
+            FE["Frontend<br/>(React / Vite)"]
+            BE["Backend<br/>(FastAPI)"]
+        end
+
+        subgraph "Gemini APIs"
+            LLM["Gemini 2.5 Flash<br/>(LLM)"]
+            TTS["Gemini TTS<br/>(Text-to-Speech)"]
+            IMG["Imagen 4<br/>(Image Generation)"]
+            LIVE["Gemini Live API<br/>(Real-time Voice)"]
+        end
+
+        ADK["Creative Storyteller<br/>(ADK Agent)"]
+        LIVE_AGENT["Live Agent<br/>(適齡萬事通 Tutor)"]
+        SQL["Cloud SQL<br/>(PostgreSQL 16)"]
+        GCS["GCS<br/>(File Storage)"]
+        SM["Secret Manager<br/>(API Keys)"]
+        AR["Artifact Registry<br/>(Container Images)"]
+        GLB["Global Load Balancer"]
+    end
+
+    subgraph CI["CI/CD"]
+        GHA["GitHub Actions"]
+        WIF["Workload Identity<br/>Federation"]
+    end
+
+    U -->|HTTPS| GLB
+    GLB --> FE
+    GLB --> BE
+    FE -->|REST API| BE
+    BE --> ADK
+    BE --> LIVE_AGENT
+    ADK --> LLM
+    ADK --> TTS
+    ADK --> IMG
+    LIVE_AGENT --> LIVE
+    BE -->|VPC Peering| SQL
+    BE --> GCS
+    SM -.->|inject secrets| BE
+    GHA --> WIF
+    WIF --> AR
+    AR --> FE
+    AR --> BE
+```
+
 The project follows **Clean Architecture** with four layers:
 
 ```
@@ -114,6 +166,41 @@ frontend/src/
 | `make check` | Lint + format check + typecheck |
 | `make format` | Auto-format code (ruff + eslint) |
 | `make clean` | Clean build artifacts |
+
+## Findings & Learnings
+
+### 1. Gemini TTS — Multi-Character Voice Acting
+
+Gemini's TTS API supports expressive, multi-voice narration ideal for children's stories. Key discoveries:
+
+- **Voice selection for Traditional Chinese**: We tested all available voices and selected those with natural Mandarin pronunciation and child-friendly warmth. Different character archetypes (hero, villain, narrator) each map to a distinct voice profile.
+- **Emotion & style control**: By embedding SSML-like cues in the prompt (e.g., "speak excitedly", "whisper mysteriously"), we achieved noticeably different emotional tones without changing the voice itself.
+- **Multi-channel orchestration**: Each story character is assigned a consistent voice ID. The backend streams TTS segments in sequence, stitching them into a seamless audio experience so children hear a "cast" of characters, not a single narrator.
+
+### 2. Imagen 4 — Pixel Art for 16×16 LED Display
+
+StoryPal's physical companion device uses a 16×16 LED pixel matrix to display story illustrations. Generating recognizable images at such extreme low resolution required extensive prompt engineering:
+
+- **16×16 pixel constraint**: Every illustration must be legible on a 16×16 LED grid — only 256 pixels total. We tested numerous prompt strategies to produce clean, high-contrast pixel art that remains identifiable at this resolution (e.g., "16x16 pixel art, single subject, minimal detail, bold colors, black outline").
+- **Style consistency**: We prepend a shared pixel-art style prefix to every image prompt to maintain a cohesive visual language across story scenes, though achieving consistent character representation at 16×16 remains an open challenge.
+- **Room for improvement**: Despite extensive prompt iteration, results are inconsistent — some subjects render well while others become unrecognizable blobs at 16×16. Better prompt templates, fine-tuning, or a post-processing downscale pipeline are potential next steps.
+- **Safety guardrails**: Imagen 4's built-in safety filters align well with children's content. Explicit positive framing ("friendly dragon") works better than negative constraints ("not scary dragon").
+
+### 3. Live API — Real-Time Voice Interaction
+
+The Gemini Live API powers the AI Tutor's real-time conversational experience. Lessons learned:
+
+- **WebSocket proxy architecture**: The frontend cannot connect directly to Gemini's Live API (authentication, CORS). We built a FastAPI WebSocket proxy that authenticates the session server-side and relays bidirectional audio streams. This adds ~30–50 ms of latency but provides full control over session lifecycle.
+- **Latency optimization**: We minimized round-trip time by (1) keeping a warm connection pool to Gemini, (2) streaming audio chunks in 100 ms frames rather than waiting for complete utterances, and (3) starting TTS playback before the full response is generated.
+- **Graceful degradation**: Network instability is common on children's devices (tablets, family WiFi). We implemented automatic reconnection with exponential backoff and a visual "thinking" indicator so the child isn't confused by silence during brief disconnections.
+
+### 4. Young Children's Speech Recognition — The Unsolved Challenge
+
+Building a voice-first experience for 2–4 year-olds revealed fundamental limitations in current speech recognition:
+
+- **Unique speech characteristics**: Young children exhibit unclear pronunciation, unstable speech tempo, limited vocabulary, and frequent non-verbal sounds (babbling, humming). These traits differ drastically from adult speech patterns that models are trained on.
+- **Attempted tuning**: We referenced academic research on child speech recognition and experimented with adjustments — lowering VAD (Voice Activity Detection) thresholds, extending silence timeout windows, and tuning endpoint sensitivity — to better capture fragmented child utterances.
+- **Current reality**: Despite tuning efforts, today's speech models remain fundamentally challenged by young children's speech. Recognition accuracy drops significantly compared to adult speakers. This is an active research frontier and a key area for future improvement in child-oriented voice AI.
 
 ## License
 
