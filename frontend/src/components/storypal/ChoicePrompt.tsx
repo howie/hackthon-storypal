@@ -6,6 +6,7 @@
  * Children tap/click a button or speak their choice.
  */
 
+import { useTranslation } from 'react-i18next'
 import { Sparkles } from 'lucide-react'
 import type { ChoicePromptData } from '@/types/storypal'
 import { cn } from '@/lib/utils'
@@ -23,6 +24,8 @@ const OPTION_COLORS = [
 ]
 
 export function ChoicePrompt({ choice, onSelect, disabled }: ChoicePromptProps) {
+  const { t } = useTranslation('story')
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 mx-auto max-w-lg space-y-4 duration-500">
       {/* Prompt text */}
@@ -55,7 +58,7 @@ export function ChoicePrompt({ choice, onSelect, disabled }: ChoicePromptProps) 
 
       {/* Hint */}
       <p className="text-center text-xs text-muted-foreground">
-        點選按鈕或用說的告訴我你的選擇
+        {t('choice.hint')}
       </p>
     </div>
   )

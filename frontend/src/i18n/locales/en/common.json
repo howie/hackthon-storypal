@@ -1,0 +1,44 @@
+{
+  "nav": {
+    "home": "Home",
+    "voiceStory": "Voice Story",
+    "voiceGame": "Voice Game",
+    "tutor": "AI Tutor",
+    "magicDJ": "Magic DJ",
+    "experimental": "Beta"
+  },
+  "sidebar": {
+    "expand": "Expand sidebar",
+    "collapse": "Collapse sidebar",
+    "version": "StoryPal v1.0.0"
+  },
+  "landing": {
+    "welcome": "Welcome to StoryPal",
+    "subtitle": "AI-powered interactive stories & smart tutoring, designed for kids",
+    "voiceStoryDesc": "AI crafts personalized interactive stories with multi-character voices and beautiful illustrations",
+    "voiceGameDesc": "Let children make choices in the story world for an immersive interactive adventure",
+    "tutorDesc": "AI tutor answers all kinds of curious questions in a child-friendly way"
+  },
+  "actions": {
+    "back": "Back",
+    "retry": "Retry",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "copy": "Copy",
+    "copied": "Copied"
+  },
+  "errors": {
+    "loadFailed": "Failed to load",
+    "saveFailed": "Save failed, please retry",
+    "loginExpired": "Session expired, please log in again",
+    "audioLoadFailed": "Audio load failed, please go back and retry",
+    "audioDownloadFailed": "Audio download failed, please try again later"
+  },
+  "status": {
+    "completed": "Completed",
+    "active": "In Progress",
+    "paused": "Paused"
+  }
+}

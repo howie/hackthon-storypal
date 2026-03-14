@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { AlertTriangle, CheckCircle2, HelpCircle, Lightbulb, Loader2, MessageCircle } from 'lucide-react'
 import type { QAContent } from '@/types/storypal'
 import { cn } from '@/lib/utils'
@@ -18,6 +19,7 @@ interface QAPlayerProps {
 }
 
 export function QAPlayer({ qaContent, isGenerating = false, error, onGenerate }: QAPlayerProps) {
+  const { t } = useTranslation('story')
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showHint, setShowHint] = useState(false)
   const [countdown, setCountdown] = useState(0)
@@ -81,7 +83,7 @@ export function QAPlayer({ qaContent, isGenerating = false, error, onGenerate }:
       <div className="rounded-lg border bg-card p-6">
         <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Q&A 生成中...
+          {t('qa.generating')}
         </div>
         <div className="mt-4 space-y-3">
           <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
@@ -102,7 +104,7 @@ export function QAPlayer({ qaContent, isGenerating = false, error, onGenerate }:
             onClick={onGenerate}
             className="mt-3 rounded-lg border border-destructive/30 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
           >
-            重試
+            {t('common:actions.retry')}
           </button>
         )}
       </div>
@@ -114,13 +116,13 @@ export function QAPlayer({ qaContent, isGenerating = false, error, onGenerate }:
     return (
       <div className="rounded-lg border border-dashed bg-card p-6 text-center">
         <HelpCircle className="mx-auto mb-2 h-8 w-8 text-muted-foreground/50" />
-        <p className="text-sm text-muted-foreground">還沒有生成故事 Q&A</p>
+        <p className="text-sm text-muted-foreground">{t('qa.noQA')}</p>
         {onGenerate && (
           <button
             onClick={onGenerate}
             className="mt-3 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            生成故事 Q&A
+            {t('qa.generateQA')}
           </button>
         )}
       </div>
@@ -143,7 +145,7 @@ export function QAPlayer({ qaContent, isGenerating = false, error, onGenerate }:
           }}
           className="rounded-lg border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
         >
-          再玩一次
+          {t('qa.playAgain')}
         </button>
       </div>
     )
@@ -155,7 +157,7 @@ export function QAPlayer({ qaContent, isGenerating = false, error, onGenerate }:
       {/* Progress */}
       <div className="mb-4 flex items-center justify-between text-xs text-muted-foreground">
         <span>
-          問題 {currentIndex + 1} / {totalQuestions}
+          {t('qa.question')} {currentIndex + 1} / {totalQuestions}
         </span>
         <div className="flex gap-1">
           {qaContent.questions.map((_, i) => (
@@ -235,7 +237,7 @@ export function QAPlayer({ qaContent, isGenerating = false, error, onGenerate }:
           onClick={handleNext}
           className="ml-auto rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
         >
-          {currentIndex < totalQuestions - 1 ? '下一題' : '完成'}
+          {currentIndex < totalQuestions - 1 ? t('qa.nextQuestion') : t('qa.done')}
         </button>
       </div>
     </div>

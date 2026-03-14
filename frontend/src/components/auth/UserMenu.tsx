@@ -4,12 +4,14 @@
  */
 
 import { useState, useRef, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/authStore'
 
 export function UserMenu() {
   const { user, logout, isLoading } = useAuthStore()
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const { t } = useTranslation('auth')
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -60,7 +62,7 @@ export function UserMenu() {
         <div className="absolute right-0 mt-2 w-56 origin-top-right rounded-lg border bg-card shadow-lg z-50">
           {/* User info */}
           <div className="border-b px-4 py-3">
-            <p className="text-sm font-medium">{user.name || '使用者'}</p>
+            <p className="text-sm font-medium">{user.name || t('user.defaultName')}</p>
             <p className="truncate text-xs text-muted-foreground">
               {user.email}
             </p>
@@ -88,7 +90,7 @@ export function UserMenu() {
                   clipRule="evenodd"
                 />
               </svg>
-              登出
+              {t('user.logout')}
             </button>
           </div>
         </div>

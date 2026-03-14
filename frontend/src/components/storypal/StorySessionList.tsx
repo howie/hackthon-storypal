@@ -16,6 +16,7 @@ import {
   Plus,
   Sparkles,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useStoryPalStore } from '@/stores/storypalStore'
 import type { StorySession } from '@/types/storypal'
 import { cn } from '@/lib/utils'
@@ -39,6 +40,7 @@ export function getSessionJobState(s: StorySession): JobState | null {
 function JobCard({ session, onReview }: { session: StorySession; onReview?: (s: StorySession) => void }) {
   const { triggerSessionSynthesis, retrySessionGeneration, retrySessionSynthesis, deleteSession } =
     useStoryPalStore()
+  const { t } = useTranslation('story')
   const jobState = getSessionJobState(session)
   const progress = session.story_state.synthesis_progress
 
@@ -54,10 +56,10 @@ function JobCard({ session, onReview }: { session: StorySession; onReview?: (s: 
         <div className="min-w-0">
           <p className="text-sm font-medium truncate">{session.title}</p>
           {jobState === 'generating' && (
-            <p className="text-xs text-muted-foreground">文字產生中...</p>
+            <p className="text-xs text-muted-foreground">{t('session.textGenerating')}</p>
           )}
           {jobState === 'needs_synthesis' && (
-            <p className="text-xs text-muted-foreground">故事已就緒</p>
+            <p className="text-xs text-muted-foreground">{t('session.storyReady')}</p>
           )}
           {jobState === 'synthesizing' && progress && (
             <div className="flex items-center gap-2 mt-1">
@@ -68,18 +70,18 @@ function JobCard({ session, onReview }: { session: StorySession; onReview?: (s: 
                 />
               </div>
               <span className="text-xs font-mono text-primary">
-                {progress.completed}/{progress.total} 音段
+                {progress.completed}/{progress.total} {t('session.audioSegments')}
               </span>
             </div>
           )}
           {jobState === 'gen_failed' && (
-            <p className="text-xs text-destructive">文字生成失敗</p>
+            <p className="text-xs text-destructive">{t('session.textGenFailed')}</p>
           )}
           {jobState === 'synth_failed' && (
             <p className="text-xs text-destructive">
               {session.story_state.synthesis_error === 'quota_exceeded'
-                ? 'TTS 配額已用盡，明日重試'
-                : '音訊合成失敗'}
+                ? t('session.quotaExceeded')
+                : t('session.synthFailed')}
             </p>
           )}
         </div>
@@ -91,7 +93,7 @@ function JobCard({ session, onReview }: { session: StorySession; onReview?: (s: 
             onClick={() => { if (onReview) { onReview(session) } else { void triggerSessionSynthesis(session.id) } }}
             className="flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground hover:bg-primary/90"
           >
-            <Eye className="h-3 w-3" /> 預覽 & 合成
+            <Eye className="h-3 w-3" /> {t('session.previewAndSynth')}
           </button>
         )}
         {jobState === 'gen_failed' && (
@@ -100,13 +102,13 @@ function JobCard({ session, onReview }: { session: StorySession; onReview?: (s: 
               onClick={() => { void retrySessionGeneration(session.id) }}
               className="text-xs text-primary hover:underline"
             >
-              重試
+              {t('common:actions.retry')}
             </button>
             <button
               onClick={() => { void deleteSession(session.id) }}
               className="text-xs text-destructive hover:underline"
             >
-              刪除
+              {t('common:actions.delete')}
             </button>
           </>
         )}
@@ -117,14 +119,14 @@ function JobCard({ session, onReview }: { session: StorySession; onReview?: (s: 
                 onClick={() => { void retrySessionSynthesis(session.id) }}
                 className="text-xs text-primary hover:underline"
               >
-                重試
+                {t('common:actions.retry')}
               </button>
             )}
             <button
               onClick={() => { void deleteSession(session.id) }}
               className="text-xs text-destructive hover:underline"
             >
-              刪除
+              {t('common:actions.delete')}
             </button>
           </>
         )}
@@ -165,6 +167,7 @@ export function StorySessionList({
   onReviewSession,
 }: StorySessionListProps) {
   const deleteSession = useStoryPalStore((s) => s.deleteSession)
+  const { t, i18n } = useTranslation('story')
 
   const jobSessions = showJobCards ? sessions.filter((s) => getSessionJobState(s) !== null) : []
   const readySessions = showJobCards
@@ -199,7 +202,7 @@ export function StorySessionList({
           {jobSessions.length > 0 && (
             <div className="mb-6">
               <p className="text-sm font-medium text-muted-foreground mb-2">
-                製作中 ({jobSessions.length})
+                {t('session.inProgress')} ({jobSessions.length})
               </p>
               <div className="space-y-2">
                 {jobSessions.map((s) => (
@@ -216,7 +219,7 @@ export function StorySessionList({
                 <div className="w-full border-t" />
               </div>
               <div className="relative flex justify-center">
-                <span className="bg-background px-2 text-xs text-muted-foreground">可播放的故事</span>
+                <span className="bg-background px-2 text-xs text-muted-foreground">{t('session.playableStories')}</span>
               </div>
             </div>
           )}
@@ -231,7 +234,7 @@ export function StorySessionList({
             /* Ready sessions grid */
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {readySessions.map((s) => {
-                const date = new Date(s.started_at).toLocaleDateString('zh-TW')
+                const date = new Date(s.started_at).toLocaleDateString(i18n.language)
                 const characters = s.characters_config?.slice(0, 3) ?? []
                 return (
                   <div
@@ -269,7 +272,7 @@ export function StorySessionList({
                               : 'bg-muted text-muted-foreground'
                         )}
                       >
-                        {s.status === 'completed' ? '已完成' : s.status === 'active' ? '進行中' : '暫停'}
+                        {s.status === 'completed' ? t('common:status.completed') : s.status === 'active' ? t('common:status.active') : t('common:status.paused')}
                       </span>
                     </div>
 

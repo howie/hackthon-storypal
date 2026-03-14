@@ -4,6 +4,7 @@
  */
 
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { LoginButton } from '@/components/auth/LoginButton'
@@ -13,6 +14,7 @@ export function LoginPage() {
   const { isAuthenticated, error, clearError } = useAuthStore()
   const navigate = useNavigate()
   const redirectPath = useLoginRedirect()
+  const { t } = useTranslation('auth')
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -31,25 +33,25 @@ export function LoginPage() {
       <div className="w-full max-w-md space-y-8 rounded-xl border bg-card p-8 shadow-lg">
         {/* Logo / Title */}
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight">Voice Lab</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('login.title')}</h1>
           <p className="mt-2 text-muted-foreground">
-            文字轉語音測試平台
+            {t('login.subtitle')}
           </p>
         </div>
 
         {/* Login form */}
         <div className="space-y-6">
           <div className="space-y-2 text-center">
-            <h2 className="text-lg font-semibold">登入您的帳號</h2>
+            <h2 className="text-lg font-semibold">{t('login.heading')}</h2>
             <p className="text-sm text-muted-foreground">
-              使用 Google 帳號登入以使用所有功能
+              {t('login.description')}
             </p>
           </div>
 
           {/* Error message */}
           {error && (
             <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive">
-              <p className="font-medium">登入失敗</p>
+              <p className="font-medium">{t('login.failed')}</p>
               <p className="mt-1">{error}</p>
             </div>
           )}
@@ -59,16 +61,16 @@ export function LoginPage() {
 
           {/* Domain restriction notice */}
           <div className="rounded-lg bg-muted/50 p-4 text-sm">
-            <p className="font-medium">登入限制</p>
+            <p className="font-medium">{t('login.restriction')}</p>
             <p className="mt-1 text-muted-foreground">
-              本系統僅限授權的網域帳號登入使用。
+              {t('login.restrictionDesc')}
             </p>
           </div>
         </div>
 
         {/* Footer */}
         <p className="text-center text-xs text-muted-foreground">
-          登入即表示您同意我們的服務條款和隱私政策
+          {t('login.terms')}
         </p>
       </div>
     </div>

@@ -11,6 +11,7 @@
 
 import { useState } from 'react'
 import { BookOpen, ChevronDown, GitFork, Loader2, Sparkles, User, Users } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type {
   ChildConfig,
   EmotionKey,
@@ -27,32 +28,6 @@ import { cn } from '@/lib/utils'
 
 export type VoiceMode = 'multi_role' | 'single_role'
 export type StoryMode = 'linear' | 'branching'
-
-function getAgeHint(age: number): { label: string; description: string; color: string } {
-  if (age <= 2)
-    return {
-      label: '小寶寶（1-2歲）',
-      description: '極短句、重複節奏、擬聲詞，一件事的小故事',
-      color: 'bg-pink-50 border-pink-200',
-    }
-  if (age <= 4)
-    return {
-      label: '幼幼班（3-4歲）',
-      description: '短句、生活詞彙，簡單起因結果情節',
-      color: 'bg-yellow-50 border-yellow-200',
-    }
-  if (age <= 6)
-    return {
-      label: '幼稚園（5-6歲）',
-      description: '中等句長，有輕微懸念，基本邏輯因果',
-      color: 'bg-green-50 border-green-200',
-    }
-  return {
-    label: '小學低年級（7-8歲）',
-    description: '較長段落，情節轉折，可引入道德思考',
-    color: 'bg-blue-50 border-blue-200',
-  }
-}
 
 // ─── Fallback defaults (used when API hasn't loaded yet) ─────────────────────
 
@@ -86,19 +61,6 @@ const FALLBACK_EMOTIONS: EmotionOption[] = [
   { key: 'jealousy', label: '嫉妒' },
 ]
 
-// ─── Extra options ───────────────────────────────────────────────────────────
-
-const EXTRA_OPTIONS: {
-  key: string
-  icon: string
-  label: string
-  description: string
-  disabled?: boolean
-}[] = [
-  { key: 'qa', icon: '❓', label: '故事 Q&A', description: '針對故事內容的問答' },
-  { key: 'song', icon: '🎵', label: '主題兒歌', description: '即將推出', disabled: true },
-]
-
 // ─── Props ───────────────────────────────────────────────────────────────────
 
 interface StorySetupFormProps {
@@ -126,6 +88,8 @@ export function StorySetupForm({
   onSubmit,
   isLoading = false,
 }: StorySetupFormProps) {
+  const { t } = useTranslation('story')
+
   // Resolve defaults with fallbacks
   const learningScenarios = defaults?.default_learning_scenarios ?? FALLBACK_LEARNING_SCENARIOS
   const valueOptions = defaults?.values ?? FALLBACK_VALUES
@@ -142,6 +106,45 @@ export function StorySetupForm({
   const [selectedExtras, setSelectedExtras] = useState<Record<string, boolean>>({})
   const [ttsProvider, setTtsProvider] = useState<'gemini-pro' | 'gemini-flash'>('gemini-pro')
   const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false)
+
+  // ── Age hint ───────────────────────────────────────────────────────────
+  function getAgeHint(a: number): { label: string; description: string; color: string } {
+    if (a <= 2)
+      return {
+        label: t('ageHint.baby'),
+        description: t('ageHint.babyDesc'),
+        color: 'bg-pink-50 border-pink-200',
+      }
+    if (a <= 4)
+      return {
+        label: t('ageHint.toddler'),
+        description: t('ageHint.toddlerDesc'),
+        color: 'bg-yellow-50 border-yellow-200',
+      }
+    if (a <= 6)
+      return {
+        label: t('ageHint.preschool'),
+        description: t('ageHint.preschoolDesc'),
+        color: 'bg-green-50 border-green-200',
+      }
+    return {
+      label: t('ageHint.elementary'),
+      description: t('ageHint.elementaryDesc'),
+      color: 'bg-blue-50 border-blue-200',
+    }
+  }
+
+  // ── Extra options ──────────────────────────────────────────────────────
+  const EXTRA_OPTIONS: {
+    key: string
+    icon: string
+    label: string
+    description: string
+    disabled?: boolean
+  }[] = [
+    { key: 'qa', icon: '❓', label: t('setup.storyQA'), description: t('setup.storyQADesc') },
+    { key: 'song', icon: '🎵', label: t('setup.themeSong'), description: t('setup.themeSongDesc'), disabled: true },
+  ]
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -177,8 +180,8 @@ export function StorySetupForm({
     )
   }
 
-  const handleTemplateSelect = (t: StoryTemplate | null) => {
-    onSelectTemplate?.(t)
+  const handleTemplateSelect = (tmpl: StoryTemplate | null) => {
+    onSelectTemplate?.(tmpl)
     setTemplateDropdownOpen(false)
   }
 
@@ -190,7 +193,7 @@ export function StorySetupForm({
       selected_values: selectedValues,
       selected_emotions: selectedEmotions,
       favorite_character: favoriteCharacter,
-      child_name: childName || '小朋友',
+      child_name: childName || t('setup.childNamePlaceholder'),
     }
     const extras = Object.keys(selectedExtras).filter((k) => selectedExtras[k])
     onSubmit(childConfig, voiceMode, storyMode, extras, ttsProvider)
@@ -206,17 +209,17 @@ export function StorySetupForm({
       <div className="space-y-6">
         {/* ── Title ─────────────────────────────────────────────────────── */}
         <div>
-          <h2 className="text-lg font-semibold">故事設定</h2>
+          <h2 className="text-lg font-semibold">{t('setup.title')}</h2>
           <p className="text-sm text-muted-foreground">
-            選擇故事風格、填入孩子的資訊，AI 將生成專屬故事
+            {t('setup.subtitle')}
           </p>
         </div>
 
         {/* ── Template Selector (optional) ─────────────────────────────── */}
         {templates.length > 0 && (
           <div className="border-b pb-6">
-            <label className="mb-2 block text-sm font-medium">故事風格範本</label>
-            <p className="mb-2 text-xs text-muted-foreground">可選擇範本設定故事風格，或留空自訂</p>
+            <label className="mb-2 block text-sm font-medium">{t('setup.templateLabel')}</label>
+            <p className="mb-2 text-xs text-muted-foreground">{t('setup.templateHint')}</p>
             <div className="relative">
               <button
                 type="button"
@@ -224,7 +227,7 @@ export function StorySetupForm({
                 className="flex w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 <span className={selectedTemplate ? 'text-foreground' : 'text-muted-foreground'}>
-                  {selectedTemplate ? selectedTemplate.name : '不使用範本（自訂風格）'}
+                  {selectedTemplate ? selectedTemplate.name : t('setup.noTemplate')}
                 </span>
                 <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', templateDropdownOpen && 'rotate-180')} />
               </button>
@@ -240,28 +243,28 @@ export function StorySetupForm({
                       !selectedTemplate && 'bg-accent/50 font-medium',
                     )}
                   >
-                    不使用範本（自訂風格）
+                    {t('setup.noTemplate')}
                   </button>
-                  {templates.map((t) => {
-                    const cat = STORY_CATEGORIES[t.category]
+                  {templates.map((tmpl) => {
+                    const cat = STORY_CATEGORIES[tmpl.category]
                     return (
                       <button
                         type="button"
-                        key={t.id}
-                        onClick={() => handleTemplateSelect(t)}
+                        key={tmpl.id}
+                        onClick={() => handleTemplateSelect(tmpl)}
                         className={cn(
                           'w-full px-3 py-2 text-left hover:bg-accent',
-                          selectedTemplate?.id === t.id && 'bg-accent/50',
+                          selectedTemplate?.id === tmpl.id && 'bg-accent/50',
                         )}
                       >
                         <div className="flex items-center gap-2">
                           <span>{cat?.emoji}</span>
-                          <span className="text-sm font-medium">{t.name}</span>
+                          <span className="text-sm font-medium">{tmpl.name}</span>
                           <span className="ml-auto text-xs text-muted-foreground">
-                            {t.target_age_min}-{t.target_age_max} 歲
+                            {tmpl.target_age_min}-{tmpl.target_age_max} {t('setup.ageYears')}
                           </span>
                         </div>
-                        <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{t.description}</p>
+                        <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{tmpl.description}</p>
                       </button>
                     )
                   })}
@@ -297,17 +300,17 @@ export function StorySetupForm({
         {/* ── Child Name ───────────────────────────────────────────────── */}
         <div className="border-b pb-6">
           <label htmlFor="child-name" className="mb-1 block text-sm font-medium">
-            孩子的名字
+            {t('setup.childName')}
           </label>
           <p className="mb-2 text-xs text-muted-foreground">
-            故事會直接用這個名字稱呼孩子，留空則使用「小朋友」
+            {t('setup.childNameHint')}
           </p>
           <input
             id="child-name"
             type="text"
             value={childName}
             onChange={(e) => setChildName(e.target.value)}
-            placeholder="小朋友"
+            placeholder={t('setup.childNamePlaceholder')}
             className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
@@ -316,10 +319,10 @@ export function StorySetupForm({
         <div className="border-b pb-6">
           <div className="mb-2 flex items-center justify-between">
             <label htmlFor="age-slider" className="text-sm font-medium">
-              孩子年齡
+              {t('setup.childAge')}
             </label>
             <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-sm font-medium text-primary">
-              {age} 歲
+              {age} {t('setup.ageYears')}
             </span>
           </div>
           <input
@@ -330,15 +333,15 @@ export function StorySetupForm({
             step={1}
             value={age}
             onChange={(e) => setAge(Number(e.target.value))}
-            aria-label="孩子年齡"
+            aria-label={t('setup.childAge')}
             aria-valuemin={1}
             aria-valuemax={8}
             aria-valuenow={age}
             className="w-full accent-primary"
           />
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>1歲</span>
-            <span>8歲</span>
+            <span>1{t('setup.ageYears')}</span>
+            <span>8{t('setup.ageYears')}</span>
           </div>
           {/* Age hint box — shows how age affects story complexity */}
           {(() => {
@@ -355,7 +358,7 @@ export function StorySetupForm({
         {/* ── Learning Goals ── FR-002, FR-003 ─────────────────────────── */}
         <div className="border-b pb-6">
           <label htmlFor="learning-goals" className="mb-2 block text-sm font-medium">
-            希望孩子學會的事情
+            {t('setup.learningGoals')}
           </label>
           <div className="mb-2 flex flex-wrap gap-2">
             {learningScenarios.map((scenario) => (
@@ -380,7 +383,7 @@ export function StorySetupForm({
             id="learning-goals"
             value={learningGoals}
             onChange={(e) => setLearningGoals(e.target.value)}
-            placeholder="例如：自己穿室內拖、學會說謝謝..."
+            placeholder={t('setup.learningGoalsPlaceholder')}
             rows={2}
             className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
@@ -389,9 +392,9 @@ export function StorySetupForm({
         {/* ── Values Multi-Select ── FR-004 ────────────────────────────── */}
         <div className="border-b pb-6">
           <div className="mb-2">
-            <label className="text-sm font-medium">希望融入的價值觀</label>
+            <label className="text-sm font-medium">{t('setup.values')}</label>
             <span className="ml-2 text-xs text-muted-foreground">
-              可不選，系統會自動推斷
+              {t('setup.valuesHint')}
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -418,9 +421,9 @@ export function StorySetupForm({
         {/* ── Emotions Multi-Select ── FR-005 ──────────────────────────── */}
         <div className="border-b pb-6">
           <div className="mb-2">
-            <label className="text-sm font-medium">希望探索的情緒主題</label>
+            <label className="text-sm font-medium">{t('setup.emotions')}</label>
             <span className="ml-2 text-xs text-muted-foreground">
-              可不選，系統會自動推斷
+              {t('setup.emotionsHint')}
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -447,11 +450,11 @@ export function StorySetupForm({
         {/* ── Favorite Character ── FR-006 ─────────────────────────────── */}
         <div className="border-b pb-6">
           <label htmlFor="favorite-character" className="mb-1 block text-sm font-medium">
-            孩子最喜歡的角色
+            {t('setup.favoriteCharacter')}
           </label>
           {selectedTemplate && (
             <p className="mb-2 text-xs text-muted-foreground">
-              填寫後會取代範本的主角，留空則使用範本原有角色
+              {t('setup.favoriteCharacterTemplateHint')}
             </p>
           )}
           <input
@@ -459,16 +462,16 @@ export function StorySetupForm({
             type="text"
             value={favoriteCharacter}
             onChange={(e) => setFavoriteCharacter(e.target.value)}
-            placeholder="例如：超人力霸王、巧虎、佩佩豬..."
+            placeholder={t('setup.favoriteCharacterPlaceholder')}
             className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
 
         {/* ── Voice Mode (moved up, right after child config) ─────────── */}
         <div className="border-b pb-6">
-          <h3 className="mb-3 text-sm font-medium">角色配音模式</h3>
+          <h3 className="mb-3 text-sm font-medium">{t('setup.voiceMode')}</h3>
           <p className="mb-3 text-xs text-muted-foreground">
-            系統會根據角色自動選配聲音
+            {t('setup.voiceModeHint')}
           </p>
           <div className="grid grid-cols-2 gap-3">
             <button
@@ -482,9 +485,9 @@ export function StorySetupForm({
               )}
             >
               <Users className="h-6 w-6 text-primary" />
-              <span className="text-sm font-medium">多角色配音</span>
+              <span className="text-sm font-medium">{t('setup.multiRole')}</span>
               <span className="text-xs text-muted-foreground text-center">
-                每個角色用各自的語音
+                {t('setup.multiRoleDesc')}
               </span>
             </button>
             <button
@@ -498,9 +501,9 @@ export function StorySetupForm({
               )}
             >
               <User className="h-6 w-6 text-primary" />
-              <span className="text-sm font-medium">旁白模式</span>
+              <span className="text-sm font-medium">{t('setup.singleRole')}</span>
               <span className="text-xs text-muted-foreground text-center">
-                全部用同一個語音朗讀
+                {t('setup.singleRoleDesc')}
               </span>
             </button>
           </div>
@@ -508,9 +511,9 @@ export function StorySetupForm({
 
         {/* ── TTS Provider ────────────────────────────────────────────── */}
         <div className="border-b pb-6">
-          <h3 className="mb-3 text-sm font-medium">語音引擎</h3>
+          <h3 className="mb-3 text-sm font-medium">{t('setup.ttsEngine')}</h3>
           <p className="mb-3 text-xs text-muted-foreground">
-            選擇語音合成引擎，影響語音品質與速度
+            {t('setup.ttsEngineHint')}
           </p>
           <div className="grid grid-cols-2 gap-3">
             <button
@@ -524,7 +527,7 @@ export function StorySetupForm({
               )}
             >
               <span className="text-sm font-medium">Gemini Pro</span>
-              <span className="text-xs text-muted-foreground text-center">高品質語音</span>
+              <span className="text-xs text-muted-foreground text-center">{t('setup.highQuality')}</span>
             </button>
             <button
               type="button"
@@ -537,14 +540,14 @@ export function StorySetupForm({
               )}
             >
               <span className="text-sm font-medium">Gemini Flash</span>
-              <span className="text-xs text-muted-foreground text-center">快速生成</span>
+              <span className="text-xs text-muted-foreground text-center">{t('setup.fastGeneration')}</span>
             </button>
           </div>
         </div>
 
         {/* ── Story Mode ───────────────────────────────────────────────── */}
         <div className="border-b pb-6">
-          <h3 className="mb-3 text-sm font-medium">故事類型</h3>
+          <h3 className="mb-3 text-sm font-medium">{t('setup.storyType')}</h3>
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
@@ -557,9 +560,9 @@ export function StorySetupForm({
               )}
             >
               <BookOpen className="h-6 w-6 text-primary" />
-              <span className="text-sm font-medium">故事產生</span>
+              <span className="text-sm font-medium">{t('setup.linearStory')}</span>
               <span className="text-xs text-muted-foreground text-center">
-                純線性故事，完整起承轉合
+                {t('setup.linearStoryDesc')}
               </span>
             </button>
             <button
@@ -573,9 +576,9 @@ export function StorySetupForm({
               )}
             >
               <GitFork className="h-6 w-6 text-primary" />
-              <span className="text-sm font-medium">故事走向</span>
+              <span className="text-sm font-medium">{t('setup.branchingStory')}</span>
               <span className="text-xs text-muted-foreground text-center">
-                含 A/B 選擇的互動故事
+                {t('setup.branchingStoryDesc')}
               </span>
             </button>
           </div>
@@ -583,7 +586,7 @@ export function StorySetupForm({
 
         {/* ── Extra Options ────────────────────────────────────────────── */}
         <div className="border-b pb-6">
-          <h3 className="mb-3 text-sm font-medium">額外選項</h3>
+          <h3 className="mb-3 text-sm font-medium">{t('setup.extraOptions')}</h3>
           <div className="space-y-2">
             {EXTRA_OPTIONS.map((opt) => (
               <label
@@ -612,7 +615,7 @@ export function StorySetupForm({
                 </div>
                 {opt.disabled && (
                   <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                    即將推出
+                    {t('setup.comingSoon')}
                   </span>
                 )}
               </label>
@@ -631,12 +634,12 @@ export function StorySetupForm({
             {isLoading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                故事準備中...
+                {t('setup.generating')}
               </>
             ) : (
               <>
                 <Sparkles className="h-4 w-4" />
-                開始生成故事
+                {t('setup.generateStory')}
               </>
             )}
           </button>
