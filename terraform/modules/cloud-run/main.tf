@@ -32,6 +32,10 @@ variable "db_user" {
   type = string
 }
 
+variable "db_private_ip" {
+  type = string
+}
+
 variable "secret_ids" {
   description = "Map of secret name to secret ID"
   type        = map(string)
@@ -48,6 +52,12 @@ resource "google_service_account" "backend_sa" {
 resource "google_project_iam_member" "backend_secret_accessor" {
   project = var.project_id
   role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${google_service_account.backend_sa.email}"
+}
+
+resource "google_project_iam_member" "backend_cloudsql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
   member  = "serviceAccount:${google_service_account.backend_sa.email}"
 }
 
@@ -75,11 +85,12 @@ resource "google_cloud_run_v2_service" "backend" {
       max_instance_count = 4
     }
 
-    volumes {
-      name = "cloudsql"
-      cloud_sql_instance {
-        instances = [var.cloud_sql_connection_name]
+    vpc_access {
+      network_interfaces {
+        network    = "default"
+        subnetwork = "default"
       }
+      egress = "PRIVATE_RANGES_ONLY"
     }
 
     containers {
@@ -108,7 +119,12 @@ resource "google_cloud_run_v2_service" "backend" {
 
       env {
         name  = "DATABASE_HOST"
-        value = "/cloudsql/${var.cloud_sql_connection_name}"
+        value = var.db_private_ip
+      }
+
+      env {
+        name  = "DATABASE_PORT"
+        value = "5432"
       }
 
       env {
@@ -179,11 +195,6 @@ resource "google_cloud_run_v2_service" "backend" {
             version = "latest"
           }
         }
-      }
-
-      volume_mounts {
-        name       = "cloudsql"
-        mount_path = "/cloudsql"
       }
     }
   }

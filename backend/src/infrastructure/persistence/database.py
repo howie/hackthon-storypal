@@ -27,6 +27,10 @@ def get_database_url() -> str:
     password = os.getenv("DATABASE_PASSWORD", "postgres")
     port = os.getenv("DATABASE_PORT", "5432")
 
+    # Unix socket path (e.g. /cloudsql/project:region:instance)
+    if host.startswith("/"):
+        return f"postgresql+asyncpg://{quote_plus(user)}:{quote_plus(password)}@/{name}?host={host}"
+
     return f"postgresql+asyncpg://{quote_plus(user)}:{quote_plus(password)}@{host}:{port}/{name}"
 
 
