@@ -10,6 +10,7 @@ import { Spinner } from '@/components/shared/Spinner'
 // Lazy-loaded route pages
 const StoryPage = lazy(() => import('@/routes/storypal/StoryPage').then(m => ({ default: m.StoryPage })))
 const StoryGamePage = lazy(() => import('@/routes/story-game/StoryGamePage').then(m => ({ default: m.StoryGamePage })))
+const MagicDJPage = lazy(() => import('@/routes/magic-dj/MagicDJPage').then(m => ({ default: m.MagicDJPage })))
 const TutorPage = lazy(() => import('@/routes/tutor/TutorPage').then(m => ({ default: m.TutorPage })))
 const LandingPage = lazy(() => import('@/routes/LandingPage').then(m => ({ default: m.LandingPage })))
 
@@ -55,6 +56,7 @@ function AppContent() {
         <Route index element={<LandingPage />} />
         <Route path="storypal" element={<StoryPage />} />
         <Route path="story-game" element={<StoryGamePage />} />
+        <Route path="magic-dj" element={<MagicDJPage />} />
         <Route path="tutor" element={<TutorPage />} />
         <Route path="storypal/tutor" element={<Navigate to="/tutor" replace />} />
       </Route>
