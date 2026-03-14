@@ -1,23 +1,23 @@
-"""Google Gemini Live API client implementation.
+"""Google Gemini Live API client implementation using Google GenAI SDK.
 
 Feature: 004-interaction-module
 T027c: Gemini Live API client for V2V voice interaction.
 
-Implements voice-to-voice interaction using Google's Gemini Live API.
+Implements voice-to-voice interaction using Google's Gemini Live API
+via the official GenAI SDK.
 """
 
 import asyncio
 import base64
 import contextlib
-import json
 import logging
 import time
 from collections.abc import AsyncIterator
 from typing import Any
 from uuid import UUID
 
-import websockets
-from websockets.asyncio.client import ClientConnection
+from google import genai
+from google.genai import types
 
 from src.domain.services.interaction.base import (
     AudioChunk,
@@ -26,9 +26,6 @@ from src.domain.services.interaction.base import (
 )
 
 logger = logging.getLogger(__name__)
-
-# Gemini Live API endpoint
-GEMINI_LIVE_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
 
 # Available models for Gemini Live API (must support bidiGenerateContent)
 # See: https://ai.google.dev/gemini-api/docs/models
@@ -44,12 +41,12 @@ DEFAULT_VOICE = "Kore"  # Female voice, good for Chinese
 
 
 class GeminiRealtimeService(InteractionModeService):
-    """Google Gemini Live API implementation.
+    """Google Gemini Live API implementation using GenAI SDK.
 
     Provides voice-to-voice interaction using Gemini's Live API.
 
     The service manages:
-    - WebSocket connection to Gemini
+    - Live API session via GenAI SDK
     - Audio streaming (input and output)
     - Turn management
     - Response generation and interruption
@@ -62,7 +59,8 @@ class GeminiRealtimeService(InteractionModeService):
             api_key: Google AI API key
         """
         self._api_key = api_key
-        self._ws: ClientConnection | None = None
+        self._client = genai.Client(api_key=api_key)
+        self._session: Any = None  # GenAI Live session
         self._session_id: UUID | None = None
         self._connected = False
         self._event_queue: asyncio.Queue[ResponseEvent] = asyncio.Queue()
@@ -99,7 +97,7 @@ class GeminiRealtimeService(InteractionModeService):
         config: dict[str, Any],
         system_prompt: str = "",
     ) -> None:
-        """Connect to Gemini Live API.
+        """Connect to Gemini Live API via GenAI SDK.
 
         Args:
             session_id: Unique session identifier
@@ -110,52 +108,6 @@ class GeminiRealtimeService(InteractionModeService):
         self._config = config
         self._system_prompt = system_prompt
 
-        # Build WebSocket URL with API key
-        url = f"{GEMINI_LIVE_URL}?key={self._api_key}"
-
-        try:
-            logger.info("Connecting to Gemini WebSocket...")
-            self._ws = await websockets.connect(
-                url,
-                ping_interval=20,
-                ping_timeout=20,
-            )
-            logger.info("Gemini WebSocket connected")
-            self._connected = True
-
-            # Start receiving messages
-            self._receive_task = asyncio.create_task(self._receive_messages())
-
-            # Send setup message
-            await self._send_setup(config, system_prompt)
-
-            # Wait for setup complete
-            timeout = 10.0
-            start_time = asyncio.get_event_loop().time()
-            while not self._setup_complete:
-                elapsed = asyncio.get_event_loop().time() - start_time
-                if elapsed > timeout:
-                    logger.error("Gemini setup timeout after %.1fs", elapsed)
-                    raise TimeoutError("Gemini setup timeout")
-                await asyncio.sleep(0.1)
-
-            logger.info("Connected to Gemini Live API for session %s", session_id)
-
-        except Exception as e:
-            logger.error("Failed to connect to Gemini Live API: %s", e)
-            self._connected = False
-            raise
-
-    async def _send_setup(
-        self,
-        config: dict[str, Any],
-        system_prompt: str,
-    ) -> None:
-        """Send setup message to Gemini.
-
-        Supports gemini-2.5-flash-native-audio-preview-12-2025.
-        The 2.5 model provides native audio with 30 HD voices in 24 languages.
-        """
         # Get model from config, fallback to settings, then default
         model = config.get("model")
         if not model:
@@ -169,28 +121,7 @@ class GeminiRealtimeService(InteractionModeService):
 
         voice = config.get("voice", DEFAULT_VOICE)
 
-        # Note: Native audio models auto-detect language from conversation context
-        # Language is controlled via system_prompt instead of language_code parameter
-        setup_message: dict[str, Any] = {
-            "setup": {
-                "model": f"models/{model}",
-                "generation_config": {
-                    "speech_config": {
-                        "voice_config": {"prebuilt_voice_config": {"voice_name": voice}}
-                    },
-                    "response_modalities": ["AUDIO"],
-                    # Disable thinking for faster response (no internal reasoning delay)
-                    "thinking_config": {"thinking_budget": 0},
-                },
-                # Enable transcription for both input (user) and output (AI)
-                "input_audio_transcription": {},
-                "output_audio_transcription": {},
-            }
-        }
-
-        # Add system instruction (use default if not provided)
-        # Always prepend Chinese language instruction to ensure Gemini
-        # understands both user speech and its own responses in Chinese
+        # Build system instruction with Chinese language preamble
         chinese_language_preamble = (
             "[語言設定] 這是一個中文對話。"
             "請你全程使用繁體中文理解使用者的語音輸入，並用繁體中文回覆。"
@@ -202,7 +133,19 @@ class GeminiRealtimeService(InteractionModeService):
             or "你是一個親切的幼兒園老師，正在跟小朋友互動。請用溫柔、有耐心的方式說話，使用簡單易懂的詞彙。"
         )
         effective_prompt = chinese_language_preamble + base_prompt
-        setup_message["setup"]["system_instruction"] = {"parts": [{"text": effective_prompt}]}
+
+        # Build Live API config
+        live_config = types.LiveConnectConfig(
+            response_modalities=["AUDIO"],  # type: ignore[list-item]
+            speech_config=types.SpeechConfig(
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
+                )
+            ),
+            system_instruction=types.Content(parts=[types.Part(text=effective_prompt)]),
+            input_audio_transcription=types.AudioTranscriptionConfig(),
+            output_audio_transcription=types.AudioTranscriptionConfig(),
+        )
 
         logger.info(
             "Gemini setup: model=%s, voice=%s, prompt=%s",
@@ -212,7 +155,35 @@ class GeminiRealtimeService(InteractionModeService):
             if system_prompt and len(system_prompt) > 100
             else system_prompt or "(default)",
         )
-        await self._send_message(setup_message)
+
+        try:
+            logger.info("Connecting to Gemini Live API via GenAI SDK...")
+            self._session = await self._client.aio.live.connect(
+                model=model,
+                config=live_config,
+            )
+            # The SDK handles setup internally; if connect() returns successfully,
+            # the session is ready
+            self._connected = True
+            self._setup_complete = True
+
+            # Start receiving messages
+            self._receive_task = asyncio.create_task(self._receive_messages())
+
+            # Emit connected event
+            await self._event_queue.put(
+                ResponseEvent(
+                    type="connected",
+                    data={"status": "setup_complete"},
+                )
+            )
+
+            logger.info("Connected to Gemini Live API for session %s", session_id)
+
+        except Exception as e:
+            logger.error("Failed to connect to Gemini Live API: %s", e)
+            self._connected = False
+            raise
 
     async def disconnect(self) -> None:
         """Disconnect from the API and cleanup resources."""
@@ -226,10 +197,11 @@ class GeminiRealtimeService(InteractionModeService):
                 await self._receive_task
             self._receive_task = None
 
-        # Close WebSocket
-        if self._ws:
-            await self._ws.close()
-            self._ws = None
+        # Close Live session
+        if self._session:
+            with contextlib.suppress(Exception):
+                await self._session.close()
+            self._session = None
 
         self._session_id = None
         logger.info("Disconnected from Gemini Live API")
@@ -240,52 +212,40 @@ class GeminiRealtimeService(InteractionModeService):
         Args:
             audio: Audio chunk to stream to the API
         """
-        if not self._connected or not self._ws:
+        if not self._connected or not self._session:
             logger.warning("Cannot send audio: not connected")
             return
-
-        # Encode audio as base64
-        audio_b64 = base64.b64encode(audio.data).decode()
-
-        # Send realtime input with PCM audio
-        # IMPORTANT: MIME type must include sample rate for Gemini VAD to work correctly
-        # Per Gemini Live API docs: "audio/pcm;rate=16000"
-        sample_rate = audio.sample_rate or 16000
-        mime_type = f"audio/pcm;rate={sample_rate}"
 
         # Track send stats
         self._send_chunk_count += 1
         self._send_bytes += len(audio.data)
 
-        message = {
-            "realtime_input": {"media_chunks": [{"mime_type": mime_type, "data": audio_b64}]}
-        }
-        await self._send_message(message)
+        # Send audio via GenAI SDK Live session
+        sample_rate = audio.sample_rate or 16000
+        mime_type = f"audio/pcm;rate={sample_rate}"
+
+        await self._session.send(
+            input=types.LiveClientRealtimeInput(
+                media_chunks=[
+                    types.Blob(
+                        mime_type=mime_type,
+                        data=audio.data,
+                    )
+                ]
+            ),
+        )
 
     async def send_text(self, text: str) -> None:
         """Send a text message to Gemini as user input.
 
-        This allows sending text prompts during a V2V session, which can be used
-        to interrupt the current voice conversation with a text-based instruction.
-        Gemini treats this as a user turn with text content.
+        This allows sending text prompts during a V2V session.
         """
-        if not self._connected or not self._ws:
+        if not self._connected or not self._session:
             logger.warning("Cannot send text: not connected")
             return
 
-        message = {
-            "client_content": {
-                "turns": [
-                    {
-                        "role": "user",
-                        "parts": [{"text": text}],
-                    }
-                ],
-                "turn_complete": True,
-            }
-        }
         logger.info("Gemini sending text input: %s", text[:100])
-        await self._send_message(message)
+        await self._session.send(input=text, end_of_turn=True)
 
     async def end_turn(self) -> None:
         """Signal end of user speech.
@@ -293,31 +253,30 @@ class GeminiRealtimeService(InteractionModeService):
         For Gemini Live API with realtime audio, we send an audio_stream_end
         signal to indicate the user has finished speaking.
         """
-        if not self._connected or not self._ws:
+        if not self._connected or not self._session:
             return
 
-        # Send empty realtime_input to signal end of audio stream
-        # This tells Gemini to process accumulated audio and generate response
         logger.info(
             "Gemini audio sent: %d chunks, %d bytes",
             self._send_chunk_count,
             self._send_bytes,
         )
-        message = {"realtime_input": {"audio_stream_end": True}}
         self._reset_send_stats()
-        await self._send_message(message)
+
+        # Send end of audio stream
+        await self._session.send(
+            input=types.LiveClientRealtimeInput(audio_stream_end=True),
+        )
 
     async def interrupt(self) -> None:
         """Interrupt the current AI response.
 
         Gemini handles interruption through client content.
         """
-        if not self._connected or not self._ws:
+        if not self._connected or not self._session:
             return
 
-        # Send empty client content to signal interruption
-        message = {"client_content": {"turns": [], "turn_complete": True}}
-        await self._send_message(message)
+        await self._session.send(input="", end_of_turn=True)
         logger.debug("Sent interrupt signal to Gemini")
 
     async def events(self) -> AsyncIterator[ResponseEvent]:
@@ -330,7 +289,6 @@ class GeminiRealtimeService(InteractionModeService):
         """
         while self._connected:
             try:
-                # Use pure async wait without timeout for minimal latency
                 event = await self._event_queue.get()
                 yield event
             except asyncio.CancelledError:
@@ -338,63 +296,35 @@ class GeminiRealtimeService(InteractionModeService):
 
     def is_connected(self) -> bool:
         """Check if the service is connected."""
-        return self._connected and self._ws is not None and self._setup_complete
-
-    async def _send_message(self, message: dict[str, Any]) -> None:
-        """Send a JSON message to the WebSocket."""
-        if self._ws:
-            await self._ws.send(json.dumps(message))
+        return self._connected and self._session is not None and self._setup_complete
 
     async def _receive_messages(self) -> None:
-        """Background task to receive and process messages from Gemini."""
-        if not self._ws:
-            logger.warning("No WebSocket, exiting receive task")
+        """Background task to receive and process messages from Gemini via GenAI SDK."""
+        if not self._session:
+            logger.warning("No session, exiting receive task")
             return
 
         try:
-            async for message in self._ws:
-                if isinstance(message, bytes):
-                    message = message.decode()
-
-                try:
-                    event = json.loads(message)
-                    await self._handle_event(event)
-                except json.JSONDecodeError:
-                    logger.error("Failed to decode Gemini message: %s", message[:100])
-
-        except websockets.ConnectionClosed as e:
-            logger.info("Gemini WebSocket closed: code=%s, reason=%s", e.code, e.reason)
-            self._connected = False
+            async for message in self._session.receive():
+                await self._handle_sdk_message(message)
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             logger.error("Error receiving Gemini messages: %s", e)
             self._connected = False
 
-    async def _handle_event(self, event: dict[str, Any]) -> None:
-        """Handle an event received from Gemini.
+    async def _handle_sdk_message(self, message: Any) -> None:
+        """Handle a message received from Gemini via GenAI SDK.
 
-        Maps Gemini events to our ResponseEvent format.
+        Maps GenAI SDK Live API messages to our ResponseEvent format.
         """
-        # Setup complete event
-        if "setupComplete" in event:
-            self._setup_complete = True
-            await self._event_queue.put(
-                ResponseEvent(
-                    type="connected",
-                    data={"status": "setup_complete"},
-                )
-            )
-
-        # Server content event (contains audio, text, transcription, or turn completion)
-        elif "serverContent" in event:
-            server_content = event["serverContent"]
-
-            # Handle input transcription (user speech -> text)
-            # Gemini sends incremental transcription with duplicates, so we accumulate
-            # and only send truly new content to the frontend
-            if "inputTranscription" in server_content:
-                text = server_content["inputTranscription"].get("text", "")
-                # Check if this text is already part of accumulated transcript
-                # If not, it's new content - append and send only the new part
+        # The SDK returns LiveServerMessage objects with various fields
+        server_content = getattr(message, "server_content", None)
+        if server_content:
+            # Handle input transcription
+            input_transcription = getattr(server_content, "input_transcription", None)
+            if input_transcription:
+                text = getattr(input_transcription, "text", "")
                 if text and text not in self._accumulated_input_transcript:
                     self._accumulated_input_transcript += text
                     await self._event_queue.put(
@@ -404,11 +334,10 @@ class GeminiRealtimeService(InteractionModeService):
                         )
                     )
 
-            # Handle output transcription (AI speech -> text)
-            # Same deduplication logic for AI responses
-            if "outputTranscription" in server_content:
-                text = server_content["outputTranscription"].get("text", "")
-                # Same deduplication logic for AI responses
+            # Handle output transcription
+            output_transcription = getattr(server_content, "output_transcription", None)
+            if output_transcription:
+                text = getattr(output_transcription, "text", "")
                 if text and text not in self._accumulated_output_transcript:
                     self._accumulated_output_transcript += text
                     await self._event_queue.put(
@@ -419,7 +348,8 @@ class GeminiRealtimeService(InteractionModeService):
                     )
 
             # Check for turn complete
-            if server_content.get("turnComplete"):
+            turn_complete = getattr(server_content, "turn_complete", False)
+            if turn_complete:
                 self._log_turn_summary()
                 self._accumulated_input_transcript = ""
                 self._accumulated_output_transcript = ""
@@ -432,8 +362,8 @@ class GeminiRealtimeService(InteractionModeService):
                 )
 
             # Check for interruption
-            if server_content.get("interrupted"):
-                # Reset accumulated transcripts on interruption
+            interrupted = getattr(server_content, "interrupted", False)
+            if interrupted:
                 self._accumulated_input_transcript = ""
                 self._accumulated_output_transcript = ""
                 self._reset_recv_stats()
@@ -445,20 +375,19 @@ class GeminiRealtimeService(InteractionModeService):
                 )
 
             # Process model turn (audio/text content)
-            if "modelTurn" in server_content:
-                model_turn = server_content["modelTurn"]
-                parts = model_turn.get("parts", [])
-
+            model_turn = getattr(server_content, "model_turn", None)
+            if model_turn:
+                parts = getattr(model_turn, "parts", []) or []
                 for part in parts:
-                    # Handle audio data
-                    if "inlineData" in part:
-                        inline_data = part["inlineData"]
-                        mime_type = inline_data.get("mimeType", "")
-                        data_b64 = inline_data.get("data", "")
-                        if mime_type.startswith("audio/"):
+                    inline_data = getattr(part, "inline_data", None)
+                    if inline_data:
+                        mime_type = getattr(inline_data, "mime_type", "")
+                        data = getattr(inline_data, "data", b"")
+                        if mime_type and mime_type.startswith("audio/") and data:
                             # Track recv stats
                             now = time.monotonic()
                             self._recv_chunk_count += 1
+                            data_b64 = base64.b64encode(data).decode()
                             self._recv_bytes += len(data_b64)
                             if self._recv_chunk_count == 1:
                                 self._recv_start_time = now
@@ -475,54 +404,45 @@ class GeminiRealtimeService(InteractionModeService):
                                 )
                             )
 
-                    # Handle text data
-                    elif "text" in part:
+                    text = getattr(part, "text", None)
+                    if text:
                         await self._event_queue.put(
                             ResponseEvent(
                                 type="text_delta",
-                                data={"text": part["text"]},
+                                data={"text": text},
                             )
                         )
 
-        # Input transcription event (user speech -> text)
-        elif "inputTranscription" in event:
-            transcription = event["inputTranscription"]
-            text = transcription.get("text", "")
-            is_final = transcription.get("isFinal", True)
-            if text:
-                await self._event_queue.put(
-                    ResponseEvent(
-                        type="transcript",
-                        data={
-                            "text": text,
-                            "is_final": is_final,
-                        },
-                    )
-                )
-
-        # Tool call event
-        elif "toolCall" in event:
-            tool_call = event["toolCall"]
+        # Handle tool calls
+        tool_call = getattr(message, "tool_call", None)
+        if tool_call:
+            function_calls = getattr(tool_call, "function_calls", []) or []
             await self._event_queue.put(
                 ResponseEvent(
                     type="tool_call",
                     data={
-                        "function_calls": tool_call.get("functionCalls", []),
+                        "function_calls": [
+                            {
+                                "name": getattr(fc, "name", ""),
+                                "args": getattr(fc, "args", {}),
+                                "id": getattr(fc, "id", ""),
+                            }
+                            for fc in function_calls
+                        ],
                     },
                 )
             )
 
-        # Tool call cancellation
-        elif "toolCallCancellation" in event:
+        # Handle tool call cancellation
+        tool_call_cancellation = getattr(message, "tool_call_cancellation", None)
+        if tool_call_cancellation:
+            ids = getattr(tool_call_cancellation, "ids", []) or []
             await self._event_queue.put(
                 ResponseEvent(
                     type="tool_call_cancelled",
-                    data={"ids": event["toolCallCancellation"].get("ids", [])},
+                    data={"ids": ids},
                 )
             )
-
-        else:
-            logger.info("Unhandled Gemini event: %s", list(event.keys()))
 
     def _log_turn_summary(self) -> None:
         """Log a concise summary of the completed turn."""

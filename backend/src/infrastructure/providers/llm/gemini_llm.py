@@ -1,10 +1,11 @@
-"""Google Gemini LLM Provider."""
+"""Google Gemini LLM Provider using Google GenAI SDK."""
 
 import logging
 import time
 from collections.abc import AsyncIterator
 
-import httpx
+from google import genai
+from google.genai import types
 
 from src.application.interfaces.llm_provider import ILLMProvider, LLMMessage, LLMResponse
 
@@ -12,9 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class GeminiLLMProvider(ILLMProvider):
-    """Google Gemini LLM provider implementation."""
-
-    BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
+    """Google Gemini LLM provider implementation using GenAI SDK."""
 
     def __init__(self, api_key: str, model: str = "gemini-2.5-flash"):
         """Initialize Gemini LLM provider.
@@ -25,6 +24,7 @@ class GeminiLLMProvider(ILLMProvider):
         """
         self._api_key = api_key
         self._model = model
+        self._client = genai.Client(api_key=api_key)
 
     @property
     def name(self) -> str:
@@ -48,12 +48,13 @@ class GeminiLLMProvider(ILLMProvider):
         temperature: float = 0.7,
         response_format: str | None = None,
     ) -> LLMResponse:
-        """Generate response using Gemini API.
+        """Generate response using Gemini API via GenAI SDK.
 
         Args:
             messages: List of chat messages (conversation history)
             max_tokens: Maximum tokens in response
             temperature: Sampling temperature (0.0 - 1.0)
+            response_format: Optional response format ("json" for JSON output)
 
         Returns:
             LLM response with generated text
@@ -63,72 +64,60 @@ class GeminiLLMProvider(ILLMProvider):
         """
         start_time = time.perf_counter()
 
-        # Convert messages to Gemini format
+        # Convert messages to GenAI SDK format
         contents = []
         system_instruction = None
 
         for msg in messages:
             if msg.role == "system":
-                # Gemini handles system messages separately
                 system_instruction = msg.content
             else:
-                # Map 'assistant' to 'model' for Gemini
                 role = "model" if msg.role == "assistant" else "user"
-                contents.append({"role": role, "parts": [{"text": msg.content}]})
+                contents.append(types.Content(role=role, parts=[types.Part(text=msg.content)]))
 
-        # Build request body
-        generation_config: dict = {
+        # Build generation config
+        config_kwargs: dict = {
             "temperature": temperature,
-            "maxOutputTokens": max_tokens,
-        }
-        if response_format == "json":
-            # Force structured JSON output (supported on all generateContent models)
-            generation_config["responseMimeType"] = "application/json"
-            # Only gemini-2.5+ supports thinkingConfig; older models (2.0, 1.5) will error
-            if self._is_thinking_model():
-                generation_config["thinkingConfig"] = {"thinkingBudget": 0}
-
-        body = {
-            "contents": contents,
-            "generationConfig": generation_config,
+            "max_output_tokens": max_tokens,
         }
 
-        # Add system instruction if present
         if system_instruction:
-            body["systemInstruction"] = {"parts": [{"text": system_instruction}]}
+            config_kwargs["system_instruction"] = system_instruction
 
-        # Build URL with API key
-        url = f"{self.BASE_URL}/{self._model}:generateContent?key={self._api_key}"
+        if response_format == "json":
+            config_kwargs["response_mime_type"] = "application/json"
+            if self._is_thinking_model():
+                config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(url, json=body)
+        config = types.GenerateContentConfig(**config_kwargs)
 
-            if response.status_code != 200:
-                logger.error(
-                    "Gemini API failed: status=%s body=%s",
-                    response.status_code,
-                    response.text,
-                )
-                raise RuntimeError("LLM service temporarily unavailable")
-
-            result = response.json()
+        try:
+            response = await self._client.aio.models.generate_content(
+                model=self._model,
+                contents=contents,
+                config=config,
+            )
+        except Exception as e:
+            logger.error("Gemini API failed: %s", e)
+            raise RuntimeError("LLM service temporarily unavailable") from e
 
         latency_ms = int((time.perf_counter() - start_time) * 1000)
 
         # Extract content from response, skipping internal thought parts
-        # (gemini-2.5-flash returns "thought": true parts that must be excluded)
         content = ""
-        if "candidates" in result and len(result["candidates"]) > 0:
-            candidate = result["candidates"][0]
-            if "content" in candidate and "parts" in candidate["content"]:
-                for part in candidate["content"]["parts"]:
-                    if "text" in part and not part.get("thought", False):
-                        content += part["text"]
+        if response.candidates and len(response.candidates) > 0:
+            candidate = response.candidates[0]
+            if candidate.content and candidate.content.parts:
+                for part in candidate.content.parts:
+                    if part.text and not getattr(part, "thought", False):
+                        content += part.text
 
         # Extract token usage if available
-        usage_metadata = result.get("usageMetadata", {})
-        input_tokens = usage_metadata.get("promptTokenCount", 0)
-        output_tokens = usage_metadata.get("candidatesTokenCount", 0)
+        input_tokens = 0
+        output_tokens = 0
+        if response.usage_metadata:
+            input_tokens = response.usage_metadata.prompt_token_count or 0
+            output_tokens = response.usage_metadata.candidates_token_count or 0
 
         return LLMResponse(
             content=content,
@@ -145,7 +134,7 @@ class GeminiLLMProvider(ILLMProvider):
         max_tokens: int = 150,
         temperature: float = 0.7,
     ) -> AsyncIterator[str]:
-        """Stream a response from the LLM.
+        """Stream a response from the LLM via GenAI SDK.
 
         Args:
             messages: List of chat messages
@@ -156,9 +145,9 @@ class GeminiLLMProvider(ILLMProvider):
             Response text chunks as they are generated
 
         Raises:
-            RuntimeError: If streaming is not supported or fails
+            RuntimeError: If streaming fails
         """
-        # Convert messages to Gemini format
+        # Convert messages to GenAI SDK format
         contents = []
         system_instruction = None
 
@@ -167,48 +156,32 @@ class GeminiLLMProvider(ILLMProvider):
                 system_instruction = msg.content
             else:
                 role = "model" if msg.role == "assistant" else "user"
-                contents.append({"role": role, "parts": [{"text": msg.content}]})
+                contents.append(types.Content(role=role, parts=[types.Part(text=msg.content)]))
 
-        # Build request body
-        body = {
-            "contents": contents,
-            "generationConfig": {
-                "temperature": temperature,
-                "maxOutputTokens": max_tokens,
-            },
+        config_kwargs: dict = {
+            "temperature": temperature,
+            "max_output_tokens": max_tokens,
         }
-
         if system_instruction:
-            body["systemInstruction"] = {"parts": [{"text": system_instruction}]}
+            config_kwargs["system_instruction"] = system_instruction
 
-        # Build URL with API key for streaming
-        url = f"{self.BASE_URL}/{self._model}:streamGenerateContent?key={self._api_key}&alt=sse"
+        config = types.GenerateContentConfig(**config_kwargs)
 
-        async with httpx.AsyncClient(timeout=60.0) as client:  # noqa: SIM117
-            async with client.stream("POST", url, json=body) as response:
-                if response.status_code != 200:
-                    error_detail = await response.aread()
-                    logger.error(
-                        "Gemini streaming API failed: status=%s body=%s",
-                        response.status_code,
-                        error_detail.decode(),
-                    )
-                    raise RuntimeError("LLM streaming service temporarily unavailable")
-
-                async for line in response.aiter_lines():
-                    if line.startswith("data: "):
-                        try:
-                            import json
-
-                            data = json.loads(line[6:])  # Remove "data: " prefix
-                            if "candidates" in data and len(data["candidates"]) > 0:
-                                candidate = data["candidates"][0]
-                                if "content" in candidate and "parts" in candidate["content"]:
-                                    for part in candidate["content"]["parts"]:
-                                        if "text" in part:
-                                            yield part["text"]
-                        except json.JSONDecodeError:
-                            continue
+        try:
+            async for chunk in self._client.aio.models.generate_content_stream(
+                model=self._model,
+                contents=contents,
+                config=config,
+            ):
+                if chunk.candidates and len(chunk.candidates) > 0:
+                    candidate = chunk.candidates[0]
+                    if candidate.content and candidate.content.parts:
+                        for part in candidate.content.parts:
+                            if part.text:
+                                yield part.text
+        except Exception as e:
+            logger.error("Gemini streaming API failed: %s", e)
+            raise RuntimeError("LLM streaming service temporarily unavailable") from e
 
     def _is_thinking_model(self) -> bool:
         """Return True if this model supports thinkingConfig (gemini-2.5+).
@@ -225,7 +198,6 @@ class GeminiLLMProvider(ILLMProvider):
             True if provider is healthy, False otherwise
         """
         try:
-            # Simple health check with minimal message
             test_messages = [LLMMessage(role="user", content="Hi")]
             await self.generate(test_messages, max_tokens=5)
             return True

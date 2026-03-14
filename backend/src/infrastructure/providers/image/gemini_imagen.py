@@ -1,15 +1,15 @@
-"""Gemini Imagen 4 image generation provider.
+"""Gemini Imagen 4 image generation provider using Google GenAI SDK.
 
-Uses the Imagen 4 `:predict` endpoint via Google AI Generative Language API.
+Uses the Imagen 4 model via Google GenAI SDK for image generation.
 """
 
 from __future__ import annotations
 
-import base64
 import logging
 import time
 
-import httpx
+from google import genai
+from google.genai import types
 
 from src.application.interfaces.image_provider import (
     IImageProvider,
@@ -19,11 +19,10 @@ from src.application.interfaces.image_provider import (
 logger = logging.getLogger(__name__)
 
 _DEFAULT_MODEL = "imagen-4.0-generate-001"
-_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
 
 class GeminiImagenProvider(IImageProvider):
-    """Imagen 4 provider using the Google AI Generative Language API."""
+    """Imagen 4 provider using the Google GenAI SDK."""
 
     def __init__(
         self,
@@ -35,7 +34,7 @@ class GeminiImagenProvider(IImageProvider):
         self._api_key = api_key
         self._model = model
         self._timeout = timeout
-        self._client = httpx.AsyncClient(timeout=timeout)
+        self._client = genai.Client(api_key=api_key)
 
     @property
     def name(self) -> str:
@@ -47,61 +46,38 @@ class GeminiImagenProvider(IImageProvider):
         *,
         aspect_ratio: str = "1:1",
     ) -> ImageGenerationResult:
-        """Generate an image using Imagen 4 :predict endpoint."""
-        url = f"{_BASE_URL}/{self._model}:predict"
-        payload = {
-            "instances": [{"prompt": prompt}],
-            "parameters": {
-                "sampleCount": 1,
-                "aspectRatio": aspect_ratio,
-                "personGeneration": "allow_adult",
-            },
-        }
-
+        """Generate an image using Imagen 4 via GenAI SDK."""
         start = time.monotonic()
-        response = await self._client.post(
-            url,
-            json=payload,
-            params={"key": self._api_key},
-        )
+
+        try:
+            response = await self._client.aio.models.generate_images(
+                model=self._model,
+                prompt=prompt,
+                config=types.GenerateImagesConfig(
+                    number_of_images=1,
+                    aspect_ratio=aspect_ratio,
+                    person_generation="allow_adult",
+                ),
+            )
+        except Exception as e:
+            error_message = str(e)
+            if "429" in error_message or "RESOURCE_EXHAUSTED" in error_message:
+                raise QuotaExceededError(f"Imagen API quota exceeded (429): {error_message}") from e
+            logger.error("Imagen API error: %s", error_message)
+            raise ImageProviderError(f"Imagen API error: {error_message}") from e
 
         latency_ms = int((time.monotonic() - start) * 1000)
 
-        if response.status_code == 429:
-            raise QuotaExceededError(f"Imagen API quota exceeded (429): {response.text}")
-
-        if response.status_code != 200:
-            # Try to extract structured error message from JSON response
-            error_detail = response.text[:200]
-            try:
-                err_body = response.json()
-                err_obj = err_body.get("error", {})
-                if isinstance(err_obj, dict) and err_obj.get("message"):
-                    error_detail = (
-                        f"[{err_obj.get('code', response.status_code)}] {err_obj['message']}"
-                    )
-            except Exception:
-                pass
-            logger.error(
-                "Imagen API error: status=%d body=%s",
-                response.status_code,
-                response.text[:500],
-            )
-            raise ImageProviderError(f"Imagen API returned {response.status_code}: {error_detail}")
-
-        data = response.json()
-        predictions = data.get("predictions", [])
-        if not predictions:
-            logger.error("Imagen API returned no predictions. keys: %s", list(data.keys()))
+        if not response.generated_images:
+            logger.error("Imagen API returned no images")
             raise ImageProviderError("Imagen API returned empty predictions")
 
-        pred = predictions[0]
-        image_b64 = pred.get("bytesBase64Encoded", "")
-        if not image_b64:
+        generated = response.generated_images[0]
+        image_bytes = generated.image.image_bytes
+        if not image_bytes:
             raise ImageProviderError("Imagen API returned prediction without image data")
 
-        image_bytes = base64.b64decode(image_b64)
-        mime_type = pred.get("mimeType", "image/png")
+        mime_type = getattr(generated.image, "mime_type", "image/png") or "image/png"
 
         return ImageGenerationResult(
             image_bytes=image_bytes,
@@ -112,8 +88,8 @@ class GeminiImagenProvider(IImageProvider):
         )
 
     async def close(self) -> None:
-        """Close the underlying httpx client."""
-        await self._client.aclose()
+        """Close the provider (no-op for GenAI SDK)."""
+        pass
 
 
 class ImageProviderError(Exception):

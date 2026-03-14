@@ -17,8 +17,8 @@ export function ProtectedRoute({
   children,
   redirectTo = '/login',
 }: ProtectedRouteProps) {
-  // TEMPORARY: Bypass auth for local testing
-  const DEV_BYPASS_AUTH = import.meta.env.DEV
+  // Only bypass auth when explicitly configured via environment variable
+  const DEV_BYPASS_AUTH = import.meta.env.VITE_DISABLE_AUTH === 'true'
 
   // Use individual selectors to prevent unnecessary re-renders
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
