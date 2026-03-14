@@ -31,7 +31,7 @@ i18n
       },
     },
     defaultNS: 'common',
-    fallbackLng: 'zh-TW',
+    fallbackLng: 'en',
     interpolation: {
       escapeValue: false,
     },
