@@ -136,6 +136,7 @@ module "cloud_run" {
   cloud_sql_connection_name = module.cloud_sql.connection_name
   db_name                   = var.db_name
   db_user                   = var.db_user
+  db_private_ip             = module.cloud_sql.private_ip
 
   secret_ids = module.secrets.secret_ids
 

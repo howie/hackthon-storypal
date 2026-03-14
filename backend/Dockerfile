@@ -72,15 +72,10 @@ USER voicelab
 # Environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=8888 \
-    NLTK_DATA=/app/nltk_data
+    PORT=8888
 
-# Pre-download NLTK data and static-ffmpeg binary (before switching to non-root user)
-USER root
-RUN mkdir -p /app/nltk_data && \
-    /app/.venv/bin/python -c "import nltk; nltk.download('punkt_tab', download_dir='/app/nltk_data')" && \
-    chown -R voicelab:voicelab /app/nltk_data
 # Pre-download static-ffmpeg binary to avoid runtime GitHub download (prevents OOM on Cloud Run)
+USER root
 RUN /app/.venv/bin/python -c "import static_ffmpeg; static_ffmpeg.add_paths()"
 USER voicelab
 
