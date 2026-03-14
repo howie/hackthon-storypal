@@ -58,11 +58,13 @@ export async function getTutorGames(childAge: number): Promise<TutorGame[]> {
 export async function getTutorV2vConfig(
   childAge: number,
   voice?: string,
-  gameType?: string
+  gameType?: string,
+  language?: string
 ): Promise<TutorV2vConfig> {
   const params: Record<string, string | number> = { child_age: childAge }
   if (voice) params.voice = voice
   if (gameType) params.game_type = gameType
+  if (language) params.language = language
   const response = await api.get<TutorV2vConfig>('/tutor/v2v-config', { params })
   return response.data
 }

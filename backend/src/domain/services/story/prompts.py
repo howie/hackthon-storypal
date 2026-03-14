@@ -63,6 +63,16 @@ IMAGE_PROMPT_SYSTEM_PROMPT = """\
 """
 
 # =============================================================================
+# i18n helper
+# =============================================================================
+
+
+def _is_english(language: str) -> bool:
+    """Return True if the language code indicates English."""
+    return language.lower().startswith("en")
+
+
+# =============================================================================
 # Label Dictionaries (key → display)
 # =============================================================================
 
@@ -73,6 +83,15 @@ VALUE_LABELS: dict[str, str] = {
     "curiosity_exploration": "好奇心與探索",
     "self_management": "自主管理與自信",
     "resilience": "彈性與堅持",
+}
+
+VALUE_LABELS_EN: dict[str, str] = {
+    "empathy_care": "Empathy & Caring",
+    "honesty_responsibility": "Honesty & Responsibility",
+    "respect_cooperation": "Respect & Cooperation",
+    "curiosity_exploration": "Curiosity & Exploration",
+    "self_management": "Self-Management & Confidence",
+    "resilience": "Resilience & Perseverance",
 }
 
 EMOTION_LABELS: dict[str, str] = {
@@ -86,6 +105,29 @@ EMOTION_LABELS: dict[str, str] = {
     "shame_guilt": "羞愧/罪惡感",
     "jealousy": "嫉妒",
 }
+
+EMOTION_LABELS_EN: dict[str, str] = {
+    "happiness": "Happiness / Joy",
+    "anger": "Anger / Frustration",
+    "sadness": "Sadness / Sorrow",
+    "fear": "Fear / Anxiety",
+    "surprise": "Surprise",
+    "disgust": "Disgust / Dislike",
+    "pride": "Pride",
+    "shame_guilt": "Shame / Guilt",
+    "jealousy": "Jealousy",
+}
+
+
+def get_value_labels(language: str = "zh-TW") -> dict[str, str]:
+    """Return value labels in the requested language."""
+    return VALUE_LABELS_EN if _is_english(language) else VALUE_LABELS
+
+
+def get_emotion_labels(language: str = "zh-TW") -> dict[str, str]:
+    """Return emotion labels in the requested language."""
+    return EMOTION_LABELS_EN if _is_english(language) else EMOTION_LABELS
+
 
 STORY_SYSTEM_PROMPT_TEMPLATE = """\
 你是「故事精靈」，一位專門為 {age_min} 到 {age_max} 歲兒童說互動故事的 AI 說書人。
@@ -134,6 +176,54 @@ STORY_SYSTEM_PROMPT_TEMPLATE = """\
 - `is_complete` 平時為 false；當故事劇情自然收束、完整結束時設為 true
 """
 
+STORY_SYSTEM_PROMPT_TEMPLATE_EN = """\
+You are "Story Sprite", an AI storyteller specializing in interactive stories \
+for children aged {age_min} to {age_max}.
+
+## Story Setting
+{story_context}
+
+## Characters
+{characters_info}
+
+## Rules (must follow strictly)
+1. All content must be child-safe. No violence, horror, inappropriate language, or adult content
+2. Use simple, vivid English appropriate for {age_min}-{age_max} year olds
+3. Keep each story segment to 2-4 sentences, maintaining a brisk pace
+4. Regularly offer 2-3 choices for the child to drive story branches
+5. Each character should have a unique speaking style
+6. Stories should be educational, incorporating positive values (courage, kindness, curiosity)
+7. Scene descriptions should be rich but concise, helping children visualize
+
+## Output Format
+You must output valid JSON in the following format:
+```json
+{{
+  "segments": [
+    {{
+      "type": "narration|dialogue|choice_prompt",
+      "content": "story text content",
+      "character_name": "character name (null for narrator)",
+      "emotion": "neutral|happy|sad|excited|scared|curious|angry|surprised",
+      "scene": "scene name (fill when scene changes, otherwise null)"
+    }}
+  ],
+  "scene_change": {{
+    "name": "new scene name",
+    "description": "scene description",
+    "bgm_prompt": "background music description",
+    "mood": "scene mood"
+  }},
+  "story_summary": "current story progress summary (one sentence)",
+  "is_complete": false
+}}
+```
+- Set `scene_change` to null when there is no scene change
+- `segments` array contains 1-5 segments
+- choice_prompt content format: "Question\\n1. Option one\\n2. Option two\\n3. Option three"
+- `is_complete` is false normally; set to true when the story naturally concludes
+"""
+
 STORY_OPENING_PROMPT = """\
 請開始說故事。用生動的開場白介紹故事背景和主要角色，然後在結尾提供第一個選擇讓小朋友決定。
 
@@ -144,6 +234,19 @@ STORY_OPENING_PROMPT = """\
 4. 結尾提供 2-3 個選項讓小朋友選擇接下來的方向
 
 請使用{language}回答，以 JSON 格式輸出。
+"""
+
+STORY_OPENING_PROMPT_EN = """\
+Start telling the story. Use a vivid opening to introduce the setting and main \
+characters, then provide the first choice for the child at the end.
+
+Opening requirements:
+1. Describe the scene so the child can visualize it
+2. Introduce 1-2 main characters with dialogue self-introductions
+3. Start with an interesting event
+4. End with 2-3 options for the child to choose the next direction
+
+Respond in {language}, output in JSON format.
 """
 
 STORY_CONTINUATION_PROMPT = """\
@@ -179,6 +282,20 @@ STORY_CONTINUATION_CONTEXT = """\
 請以 JSON 格式輸出。
 """
 
+STORY_CONTINUATION_CONTEXT_EN = """\
+Current story progress: {story_summary}
+Current scene: {current_scene}
+
+Continue the story based on the child's response. Requirements:
+1. Naturally connect to the child's choice or response
+2. Advance the plot with new events or challenges
+3. Include character interactions and dialogue
+4. Offer new choices every 2-3 turns
+5. If the story is nearing its end, begin wrapping up; set is_complete to true when done
+
+Output in JSON format.
+"""
+
 # Context-only version of STORY_QUESTION_RESPONSE_PROMPT.
 # question is passed as a separate LLMMessage to prevent prompt injection.
 # STORY_QUESTION_RESPONSE_PROMPT is kept for backward compatibility.
@@ -196,6 +313,21 @@ STORY_QUESTION_RESPONSE_CONTEXT = """\
 請以 JSON 格式輸出。
 """
 
+STORY_QUESTION_RESPONSE_CONTEXT_EN = """\
+Current story progress: {story_summary}
+Current characters: {characters_info}
+
+Answer the child's question in character, then gently guide back to the story. \
+Requirements:
+1. Answer in a kind, patient manner
+2. If the question relates to the story, weave the answer into the plot
+3. If the question is off-topic, answer briefly then gently return to the story
+4. Keep the answer age-appropriate
+5. Continue the story after answering
+
+Output in JSON format.
+"""
+
 STORY_CHOICE_PROMPT = """\
 目前故事進度：{story_summary}
 目前場景：{current_scene}
@@ -208,6 +340,20 @@ STORY_CHOICE_PROMPT = """\
 5. 可以讓角色提出建議，但最終讓小朋友決定
 
 請以 JSON 格式輸出，最後一個 segment 的 type 設為 "choice_prompt"。
+"""
+
+STORY_CHOICE_PROMPT_EN = """\
+Current story progress: {story_summary}
+Current scene: {current_scene}
+
+Provide a decision point for the child. Requirements:
+1. The decision must be closely related to the current plot
+2. Offer 2-3 interesting options with different consequences
+3. Options should be short and easy to understand for children
+4. Each option should advance the story
+5. Characters may suggest, but let the child decide
+
+Output in JSON format. Set the last segment's type to "choice_prompt".
 """
 
 STORY_QUESTION_RESPONSE_PROMPT = """\
@@ -232,8 +378,10 @@ STORY_QUESTION_RESPONSE_PROMPT = """\
 # =============================================================================
 
 
-def _get_age_language_guide(age: int) -> str:
+def _get_age_language_guide(age: int, language: str = "zh-TW") -> str:
     """Return age-appropriate language complexity guidance for the LLM."""
+    if _is_english(language):
+        return _get_age_language_guide_en(age)
     if age <= 2:
         return "極短句（每句 5 字以內），大量重複節奏，多用擬聲詞如嗡嗡、汪汪，故事情節極簡單（一件事）"
     elif age <= 4:
@@ -246,12 +394,39 @@ def _get_age_language_guide(age: int) -> str:
         )
 
 
-def build_custom_system_prompt(child_config: ChildConfig) -> str:
+def _get_age_language_guide_en(age: int) -> str:
+    """Return age-appropriate language complexity guidance in English."""
+    if age <= 2:
+        return (
+            "Very short sentences (max 5 words each), lots of repetition, "
+            "onomatopoeia (woof, meow, vroom), extremely simple plot (one event)"
+        )
+    elif age <= 4:
+        return (
+            "Short sentences (max 10 words), everyday vocabulary, "
+            "simple cause-and-effect plot, 2-3 sentences per segment"
+        )
+    elif age <= 6:
+        return (
+            "Medium sentences (max 15 words), mild suspense allowed, "
+            "basic logical cause-and-effect, 3-4 sentences per segment"
+        )
+    else:  # age 7-8
+        return (
+            "Longer paragraphs (up to 20 words per sentence), "
+            "plot twists, moral reasoning and emotional exploration, 4-6 sentences per segment"
+        )
+
+
+def build_custom_system_prompt(child_config: ChildConfig, language: str = "zh-TW") -> str:
     """Build a Gemini system prompt from child personalisation config.
 
     Dynamically injects age, learning goals, values, emotions, and
     favourite character into the storytelling prompt.
     """
+    if _is_english(language):
+        return _build_custom_system_prompt_en(child_config)
+
     values_text = (
         "、".join(VALUE_LABELS.get(v, v) for v in child_config.selected_values)
         or "由你決定最適合的價值觀"
@@ -319,7 +494,78 @@ def build_custom_system_prompt(child_config: ChildConfig) -> str:
 - 選擇提示 (choice_prompt) 的 content 格式為：「問題\\n1. 選項一\\n2. 選項二\\n3. 選項三」"""
 
 
-def build_child_config_story_context(child: ChildConfig) -> str:
+def _build_custom_system_prompt_en(child_config: ChildConfig) -> str:
+    """Build an English Gemini system prompt from child personalisation config."""
+    vl = VALUE_LABELS_EN
+    el = EMOTION_LABELS_EN
+    values_text = (
+        ", ".join(vl.get(v, v) for v in child_config.selected_values)
+        or "choose the most suitable values"
+    )
+    emotions_text = (
+        ", ".join(el.get(e, e) for e in child_config.selected_emotions)
+        or "choose the most suitable emotions"
+    )
+    character = child_config.favorite_character or "a character the child loves"
+    learning = child_config.learning_goals or "basic life skills"
+    child_name = child_config.child_name or "buddy"
+    age_language_guide = _get_age_language_guide_en(child_config.age)
+
+    return f"""\
+You are "Story Sprite", an AI storyteller for children.
+
+## Child Profile
+- Target age: {child_config.age} years old
+- Story protagonist: {character} (the child's favorite character, not the child)
+- Call the child: {child_name} (use this name when addressing the listener)
+- Learning goals: {learning}
+- Values: {values_text}
+- Emotions to explore: {emotions_text}
+
+## Language Complexity Guide
+- {age_language_guide}
+
+## Story Rules (must follow strictly)
+1. All content must be child-safe. No violence, horror, inappropriate language, or adult content
+2. Use simple, vivid English appropriate for a {child_config.age}-year-old
+3. Keep each segment to 2-4 sentences, maintaining a brisk pace
+4. Use [] brackets for tone markers (e.g. [happy], [surprised], [gentle]) for TTS
+5. Do not output chapter titles, paragraph numbers, or non-story text
+6. The protagonist is "{character}" — describe their adventure in third person. \
+The narrator occasionally addresses the child as "{child_name}" for warmth
+7. Weave "{learning}" naturally into the plot without being preachy
+8. Incorporate values: {values_text} and emotions: {emotions_text}
+9. Regularly offer 2-3 choices for the child to drive story branches
+10. Stories must have a positive ending that makes the child feel warm and encouraged
+
+## Output Format
+You must output valid JSON in the following format:
+```json
+{{{{
+  "segments": [
+    {{{{
+      "type": "narration|dialogue|choice_prompt",
+      "content": "story text (with [] tone markers)",
+      "character_name": "character name (null for narrator)",
+      "emotion": "neutral|happy|sad|excited|scared|curious|angry|surprised",
+      "scene": "scene name (fill when scene changes, otherwise null)"
+    }}}}
+  ],
+  "scene_change": {{{{
+    "name": "new scene name",
+    "description": "scene description",
+    "bgm_prompt": "background music description",
+    "mood": "scene mood"
+  }}}},
+  "story_summary": "current story progress summary (one sentence)"
+}}}}
+```
+- Set `scene_change` to null when there is no scene change
+- `segments` array contains 1-5 segments
+- choice_prompt content: "Question\\n1. Option one\\n2. Option two\\n3. Option three\""""
+
+
+def build_child_config_story_context(child: ChildConfig, language: str = "zh-TW") -> str:
     """Build concise child personalisation context for static story generation.
 
     Unlike build_custom_system_prompt (designed for WS interactive mode),
@@ -327,6 +573,9 @@ def build_child_config_story_context(child: ChildConfig) -> str:
     It provides personalisation hints WITHOUT interactive rules or output format
     definitions, avoiding conflicting instructions with COMPLETE_STORY_SYSTEM_PROMPT.
     """
+    if _is_english(language):
+        return _build_child_config_story_context_en(child)
+
     values_text = "、".join(VALUE_LABELS.get(v, v) for v in child.selected_values) or "由故事決定"
     emotions_text = (
         "、".join(EMOTION_LABELS.get(e, e) for e in child.selected_emotions) or "由故事決定"
@@ -346,13 +595,36 @@ def build_child_config_story_context(child: ChildConfig) -> str:
 - 語言風格：{age_language_guide}"""
 
 
+def _build_child_config_story_context_en(child: ChildConfig) -> str:
+    """Build English child personalisation context for static story generation."""
+    vl = VALUE_LABELS_EN
+    el = EMOTION_LABELS_EN
+    values_text = ", ".join(vl.get(v, v) for v in child.selected_values) or "story decides"
+    emotions_text = ", ".join(el.get(e, e) for e in child.selected_emotions) or "story decides"
+    character = child.favorite_character or "a character the child loves"
+    child_name = child.child_name or "buddy"
+    learning = child.learning_goals or "basic life skills"
+    age_language_guide = _get_age_language_guide_en(child.age)
+
+    return f"""\
+- Target age: {child.age} years old (language guide: {age_language_guide})
+- Protagonist: {character} (describe adventure in third person)
+- Call child: {child_name} (narrator occasionally addresses listener warmly)
+- Learning theme: {learning} (weave naturally into plot, no preaching)
+- Values: {values_text}
+- Emotions: {emotions_text}
+- Language style: {age_language_guide}"""
+
+
 # =============================================================================
 # Tutor System Prompt (US5 — 適齡萬事通)
 # =============================================================================
 
 
-def _get_tutor_age_language_guide(age: int) -> str:
+def _get_tutor_age_language_guide(age: int, language: str = "zh-TW") -> str:
     """Return age-appropriate language complexity guidance for the Tutor."""
+    if _is_english(language):
+        return _get_tutor_age_language_guide_en(age)
     if age <= 2:
         return (
             "- 每句不超過 5 個字\n"
@@ -385,12 +657,48 @@ def _get_tutor_age_language_guide(age: int) -> str:
         )
 
 
+def _get_tutor_age_language_guide_en(age: int) -> str:
+    """Return age-appropriate language complexity guidance for the Tutor (English)."""
+    if age <= 2:
+        return (
+            "- Max 5 words per sentence\n"
+            "- Use correct vocabulary (not baby talk)\n"
+            "- Onomatopoeia OK (woof, meow, vroom)\n"
+            "- Vocabulary limited to body parts, animals, food\n"
+            "- Describe things with sounds and actions\n"
+            "- Max 2 sentences per response"
+        )
+    elif age <= 4:
+        return (
+            "- Max 10 words per sentence\n"
+            "- Use everyday vocabulary (home items, preschool activities)\n"
+            "- Use familiar analogies ('just like your building blocks')\n"
+            "- Max 3 sentences per response"
+        )
+    elif age <= 6:
+        return (
+            "- Max 15 words per sentence\n"
+            "- Simple adjectives and causal connectors (because...so...)\n"
+            "- Simple cause-and-effect reasoning\n"
+            "- Max 3 sentences per response"
+        )
+    else:  # age 7-8
+        return (
+            "- Max 20 words per sentence\n"
+            "- Basic academic vocabulary (gravity, evaporation, photosynthesis)\n"
+            "- Short reasoning chains (A because B, B because C)\n"
+            "- Max 4 sentences per response"
+        )
+
+
 # ── Game definitions (all suitable for voice interaction) ─────────────────────
 
 TUTOR_GAMES: dict[str, dict] = {
     "animal_sounds": {
         "name": "動物叫聲猜猜看",
+        "name_en": "Animal Sounds Guessing",
         "description": "老師學動物叫聲，小朋友猜是什麼動物",
+        "description_en": "Teacher imitates animal sounds, child guesses the animal",
         "min_age": 1,
         "max_age": 8,
         "prompt_rules": (
@@ -402,10 +710,21 @@ TUTOR_GAMES: dict[str, dict] = {
             "- 如果孩子反過來出題模仿動物叫聲，開心地猜\n"
             "- 選擇孩子年齡適合認識的動物"
         ),
+        "prompt_rules_en": (
+            "## Animal Sounds Guessing Rules\n"
+            "- Imitate an animal sound (describe in text, e.g. 'woof woof', 'meow', 'cluck cluck')\n"
+            "- Let the child guess which animal\n"
+            "- Praise enthusiastically when correct, then switch to next animal\n"
+            "- Give hints when wrong ('This animal has long ears')\n"
+            "- If the child wants to imitate sounds for you to guess, happily play along\n"
+            "- Choose age-appropriate animals"
+        ),
     },
     "word_chain": {
         "name": "詞語接龍",
+        "name_en": "Word Chain",
         "description": "用上個詞的最後一個字接新詞",
+        "description_en": "Use the last letter of a word to start a new word",
         "min_age": 3,
         "max_age": 8,
         "prompt_rules": (
@@ -415,10 +734,19 @@ TUTOR_GAMES: dict[str, dict] = {
             "- 如果孩子接不出來，給他提示\n"
             "- 如果孩子說不懂規則，用簡單語言解釋後重新開始"
         ),
+        "prompt_rules_en": (
+            "## Word Chain Rules\n"
+            "- You say a word, the child says a new word starting with the last letter\n"
+            "- Words must be child-appropriate (common animals, food, everyday objects)\n"
+            "- If the child can't think of one, give hints\n"
+            "- If the child doesn't understand the rules, explain simply and restart"
+        ),
     },
     "riddles": {
         "name": "猜謎語",
+        "name_en": "Riddles",
         "description": "老師出簡單謎語，小朋友猜答案",
+        "description_en": "Teacher asks simple riddles, child guesses the answer",
         "min_age": 3,
         "max_age": 8,
         "prompt_rules": (
@@ -430,10 +758,21 @@ TUTOR_GAMES: dict[str, dict] = {
             "- 猜對了稱讚並問要不要再來一題\n"
             "- 避免抽象或需要文字知識的謎語"
         ),
+        "prompt_rules_en": (
+            "## Riddles Rules\n"
+            "- Ask simple, age-appropriate riddles\n"
+            "- Use everyday descriptions ('What has four legs but can't walk?')\n"
+            "- Give the child time to think, don't rush the answer\n"
+            "- When stuck, give one hint at a time, max three hints\n"
+            "- Praise when correct and ask if they want another\n"
+            "- Avoid abstract or literacy-dependent riddles"
+        ),
     },
     "antonyms": {
         "name": "相反詞",
+        "name_en": "Opposites",
         "description": "老師說一個詞，小朋友說相反詞",
+        "description_en": "Teacher says a word, child says the opposite",
         "min_age": 5,
         "max_age": 8,
         "prompt_rules": (
@@ -444,10 +783,20 @@ TUTOR_GAMES: dict[str, dict] = {
             "- 答對了稱讚，答錯了溫柔引導\n"
             "- 如果孩子不懂什麼是相反詞，先用例子示範"
         ),
+        "prompt_rules_en": (
+            "## Opposites Rules\n"
+            "- You say a word, the child says its opposite\n"
+            "- Start simple (big/small, fast/slow, hot/cold)\n"
+            "- Gradually increase difficulty (brave/timid, smooth/rough)\n"
+            "- Praise when correct, gently guide when wrong\n"
+            "- If the child doesn't understand opposites, demonstrate with examples"
+        ),
     },
     "story_chain": {
         "name": "故事接龍",
+        "name_en": "Story Chain",
         "description": "一人一句接力編故事",
+        "description_en": "Take turns adding one sentence to build a story",
         "min_age": 5,
         "max_age": 8,
         "prompt_rules": (
@@ -459,10 +808,21 @@ TUTOR_GAMES: dict[str, dict] = {
             "- 如果孩子的句子太天馬行空，微笑接受並延續\n"
             "- 在適當時候引導故事收尾，給故事一個溫馨結局"
         ),
+        "prompt_rules_en": (
+            "## Story Chain Rules\n"
+            "- You start with the first sentence\n"
+            "- Child adds the next, then you, taking turns\n"
+            "- Each sentence should naturally follow the previous one\n"
+            "- Gently guide the story toward fun, positive directions\n"
+            "- If the child's sentence is wildly creative, smile and continue\n"
+            "- Guide toward a warm ending at the right time"
+        ),
     },
     "brain_teasers": {
         "name": "腦筋急轉彎",
+        "name_en": "Brain Teasers",
         "description": "趣味邏輯題，考驗創意思考",
+        "description_en": "Fun logic puzzles that test creative thinking",
         "min_age": 7,
         "max_age": 8,
         "prompt_rules": (
@@ -474,17 +834,27 @@ TUTOR_GAMES: dict[str, dict] = {
             "- 公布答案後解釋為什麼好笑或巧妙\n"
             "- 鼓勵孩子也出題考老師"
         ),
+        "prompt_rules_en": (
+            "## Brain Teasers Rules\n"
+            "- Ask fun brain teasers (unexpected but logical answers)\n"
+            "- E.g.: 'What gets wetter the more it dries?' → 'A towel'\n"
+            "- Give the child plenty of thinking time\n"
+            "- Offer small hints if they can't guess\n"
+            "- Explain why the answer is clever after revealing it\n"
+            "- Encourage the child to quiz you back"
+        ),
     },
 }
 
 
-def get_available_games(age: int) -> list[dict]:
+def get_available_games(age: int, language: str = "zh-TW") -> list[dict]:
     """Return the list of games available for the given age."""
+    en = _is_english(language)
     return [
         {
             "id": game_id,
-            "name": game["name"],
-            "description": game["description"],
+            "name": game["name_en"] if en else game["name"],
+            "description": game["description_en"] if en else game["description"],
             "min_age": game["min_age"],
             "max_age": game["max_age"],
         }
@@ -509,16 +879,38 @@ _TUTOR_SYSTEM_PROMPT_TEMPLATE = """\
 7. 永遠用正確的大人說話方式，不要用疊字或幼兒語（如飯飯、水水、抱抱）
 {game_rules_section}"""
 
+_TUTOR_SYSTEM_PROMPT_TEMPLATE_EN = """\
+You are a kind early childhood teacher called "Teacher Sky".
 
-def build_tutor_system_prompt(child_age: int, game_type: str | None = None) -> str:
+## Language Complexity Guide ({child_age} years old)
+{age_language_guide}
+
+## Rules
+1. Use simple, clear English
+2. Use a warm, encouraging tone
+3. No content inappropriate for children
+4. If unsure about something, honestly say "Teacher isn't quite sure about that"
+5. At the end of each response, invite the child to continue interacting
+6. If you receive a message prefixed with [Parent Guidance], it's a private instruction \
+from the parent. Adjust the conversation accordingly but never mention the guidance to the child
+7. Always speak properly — no baby talk
+{game_rules_section}"""
+
+
+def build_tutor_system_prompt(
+    child_age: int, game_type: str | None = None, language: str = "zh-TW"
+) -> str:
     """Build a dynamic Tutor system prompt with age language guide + game rules."""
-    age_language_guide = _get_tutor_age_language_guide(child_age)
+    en = _is_english(language)
+    age_language_guide = _get_tutor_age_language_guide(child_age, language)
 
     game_rules_section = ""
     if game_type and game_type in TUTOR_GAMES:
-        game_rules_section = "\n" + TUTOR_GAMES[game_type]["prompt_rules"] + "\n"
+        rules_key = "prompt_rules_en" if en else "prompt_rules"
+        game_rules_section = "\n" + TUTOR_GAMES[game_type][rules_key] + "\n"
 
-    return _TUTOR_SYSTEM_PROMPT_TEMPLATE.format(
+    template = _TUTOR_SYSTEM_PROMPT_TEMPLATE_EN if en else _TUTOR_SYSTEM_PROMPT_TEMPLATE
+    return template.format(
         child_age=child_age,
         age_language_guide=age_language_guide,
         game_rules_section=game_rules_section,
@@ -670,6 +1062,48 @@ COMPLETE_STORY_SYSTEM_PROMPT = """\
 - `is_complete` 必須設為 true
 """
 
+COMPLETE_STORY_SYSTEM_PROMPT_EN = """\
+You are "Story Sprite", an AI storyteller specializing in complete children's stories.
+
+## Rules (must follow strictly)
+1. All content must be child-safe. No violence, horror, inappropriate language, or adult content
+2. Use simple, vivid English
+3. Keep each segment to 2-4 sentences, maintaining a brisk pace
+4. Story must have a complete arc: beginning, development, climax, and positive resolution
+5. **Do NOT add choice points** (choice_prompt type) — let the story flow naturally
+6. Each character should have a unique speaking style
+7. Stories should be educational with positive values
+8. The last segment completes the story with `is_complete` set to true
+
+## Output Format
+You must output valid JSON in the following format:
+```json
+{
+  "segments": [
+    {
+      "type": "narration|dialogue",
+      "content": "story text content",
+      "character_name": "character name (null for narrator)",
+      "emotion": "neutral|happy|sad|excited|scared|curious|angry|surprised",
+      "scene": "scene name (fill when scene changes, otherwise null)"
+    }
+  ],
+  "scene_change": {
+    "name": "new scene name",
+    "description": "scene description",
+    "bgm_prompt": "background music description",
+    "mood": "scene mood"
+  },
+  "story_summary": "story summary (one sentence)",
+  "is_complete": true
+}
+```
+- Set `scene_change` to null when there is no scene change
+- `segments` array contains 8-15 segments (complete story)
+- Do not use choice_prompt type
+- `is_complete` must be true
+"""
+
 COMPLETE_STORY_USER_PROMPT = """\
 請用以下故事設定，生成一個完整的兒童故事。故事要有完整的起承轉合，以正向結局結束。
 
@@ -682,6 +1116,21 @@ COMPLETE_STORY_USER_PROMPT = """\
 4. 結局：正向解決，帶有溫馨收尾
 
 請以 JSON 格式輸出。
+"""
+
+COMPLETE_STORY_USER_PROMPT_EN = """\
+Using the story settings below, generate a complete children's story with a \
+full narrative arc and a positive ending.
+
+Language: {language}
+
+Generate 8-15 story segments covering:
+1. Opening: introduce the setting and characters
+2. Development: interesting events or challenges
+3. Climax: problem or conflict
+4. Resolution: positive resolution with a warm ending
+
+Output in JSON format.
 """
 
 
@@ -737,6 +1186,54 @@ BRANCHING_STORY_SYSTEM_PROMPT = """\
 - `is_complete` 必須設為 true
 """
 
+BRANCHING_STORY_SYSTEM_PROMPT_EN = """\
+You are "Story Sprite", an AI storyteller specializing in branching children's stories.
+
+## Rules (must follow strictly)
+1. All content must be child-safe. No violence, horror, inappropriate language, or adult content
+2. Use simple, vivid English
+3. Keep each segment to 2-4 sentences, maintaining a brisk pace
+4. Story must have a complete arc with a positive ending
+5. **Insert 2-3 choice_prompt branch points** in the story, Dora-style
+6. Each choice_prompt offers 2 options (A/B choice)
+7. **All paths lead to the same ending** (options only affect details in between)
+8. After each choice_prompt, add a bridging line like "Let's try A!" then continue
+9. Each character should have a unique speaking style
+10. Stories should be educational with positive values
+11. The last segment completes the story with `is_complete` set to true
+
+## Output Format
+You must output valid JSON in the following format:
+```json
+{
+  "segments": [
+    {
+      "type": "narration|dialogue|choice_prompt",
+      "content": "story text content",
+      "character_name": "character name (null for narrator)",
+      "emotion": "neutral|happy|sad|excited|scared|curious|angry|surprised",
+      "scene": "scene name (fill when scene changes, otherwise null)",
+      "choice_options": ["Option A", "Option B"]
+    }
+  ],
+  "scene_change": {
+    "name": "new scene name",
+    "description": "scene description",
+    "bgm_prompt": "background music description",
+    "mood": "scene mood"
+  },
+  "story_summary": "story summary (one sentence)",
+  "is_complete": true
+}
+```
+- Set `scene_change` to null when there is no scene change
+- `segments` array contains 10-18 segments (including 2-3 choice_prompts)
+- choice_prompt `content` must include the full prompt text for TTS
+- choice_prompt `choice_options` array has 2 short labels (for UI buttons)
+- Other segment types don't need `choice_options`
+- `is_complete` must be true
+"""
+
 
 INTERACTIVE_CHOICES_USER_PROMPT_TEMPLATE = """\
 以下是一個為 {age} 歲孩子講的故事，主角是 {character}，學習主題是「{learning_goals}」。
@@ -767,3 +1264,86 @@ INTERACTIVE_CHOICES_USER_PROMPT_TEMPLATE = """\
 - script 是完整的互動故事腳本文字，可被 TTS 直接朗讀
 - 超時提示語要友善，重新引導孩子選擇
 """
+
+
+# =============================================================================
+# Language-aware prompt selectors
+# =============================================================================
+
+
+def get_story_system_prompt_template(language: str = "zh-TW") -> str:
+    """Return the story system prompt template for the given language."""
+    return (
+        STORY_SYSTEM_PROMPT_TEMPLATE_EN if _is_english(language) else STORY_SYSTEM_PROMPT_TEMPLATE
+    )
+
+
+def get_story_opening_prompt(language: str = "zh-TW") -> str:
+    """Return the story opening prompt for the given language."""
+    return STORY_OPENING_PROMPT_EN if _is_english(language) else STORY_OPENING_PROMPT
+
+
+def get_story_continuation_context(language: str = "zh-TW") -> str:
+    """Return the story continuation context prompt for the given language."""
+    return STORY_CONTINUATION_CONTEXT_EN if _is_english(language) else STORY_CONTINUATION_CONTEXT
+
+
+def get_story_question_response_context(language: str = "zh-TW") -> str:
+    """Return the story question response context prompt for the given language."""
+    return (
+        STORY_QUESTION_RESPONSE_CONTEXT_EN
+        if _is_english(language)
+        else STORY_QUESTION_RESPONSE_CONTEXT
+    )
+
+
+def get_story_choice_prompt(language: str = "zh-TW") -> str:
+    """Return the story choice prompt for the given language."""
+    return STORY_CHOICE_PROMPT_EN if _is_english(language) else STORY_CHOICE_PROMPT
+
+
+def get_complete_story_system_prompt(language: str = "zh-TW") -> str:
+    """Return the complete story system prompt for the given language."""
+    return (
+        COMPLETE_STORY_SYSTEM_PROMPT_EN if _is_english(language) else COMPLETE_STORY_SYSTEM_PROMPT
+    )
+
+
+def get_complete_story_user_prompt(language: str = "zh-TW") -> str:
+    """Return the complete story user prompt for the given language."""
+    return COMPLETE_STORY_USER_PROMPT_EN if _is_english(language) else COMPLETE_STORY_USER_PROMPT
+
+
+def get_branching_story_system_prompt(language: str = "zh-TW") -> str:
+    """Return the branching story system prompt for the given language."""
+    return (
+        BRANCHING_STORY_SYSTEM_PROMPT_EN if _is_english(language) else BRANCHING_STORY_SYSTEM_PROMPT
+    )
+
+
+# =============================================================================
+# Default learning scenarios (bilingual)
+# =============================================================================
+
+DEFAULT_LEARNING_SCENARIOS = [
+    "自己穿室內拖",
+    "自己刷牙",
+    "溜滑梯排隊禮讓",
+    "說請和謝謝",
+    "自己整理玩具",
+    "安靜等待輪到自己",
+]
+
+DEFAULT_LEARNING_SCENARIOS_EN = [
+    "Put on shoes by myself",
+    "Brush teeth independently",
+    "Take turns on the slide",
+    "Say please and thank you",
+    "Tidy up toys",
+    "Wait patiently for my turn",
+]
+
+
+def get_default_learning_scenarios(language: str = "zh-TW") -> list[str]:
+    """Return default learning scenarios for the given language."""
+    return DEFAULT_LEARNING_SCENARIOS_EN if _is_english(language) else DEFAULT_LEARNING_SCENARIOS

@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Download, Mic, MicOff, Sparkles } from 'lucide-react'
+import { Download, Globe, Mic, MicOff, Sparkles } from 'lucide-react'
 import { getTutorV2vConfig, getTutorLiveWsUrl, getTutorGames } from '@/services/tutorApi'
 import type { TutorGame } from '@/services/tutorApi'
 import { useGeminiLive } from '@/hooks/useGeminiLive'
@@ -57,6 +57,7 @@ export function TutorPage() {
   const [childAge, setChildAge] = useState(4)
   const [selectedVoice, setSelectedVoice] = useState('Kore')
   const [availableVoices, setAvailableVoices] = useState<string[]>(['Kore'])
+  const [contentLanguage, setContentLanguage] = useState('zh-TW')
   const [configError, setConfigError] = useState<string | null>(null)
   const [isLoadingConfig, setIsLoadingConfig] = useState(false)
 
@@ -107,7 +108,7 @@ export function TutorPage() {
 
   useEffect(() => {
     let cancelled = false
-    getTutorV2vConfig(childAge, undefined, selectedGame).then((config) => {
+    getTutorV2vConfig(childAge, undefined, selectedGame, contentLanguage).then((config) => {
       if (cancelled) return
       setDefaultPrompt(config.system_prompt)
       if (!isPromptEditedRef.current) {
@@ -117,7 +118,7 @@ export function TutorPage() {
       // Errors are surfaced when actually connecting
     })
     return () => { cancelled = true }
-  }, [childAge, selectedGame])
+  }, [childAge, selectedGame, contentLanguage])
 
   // ── Auto-scroll transcript ────────────────────────────────────────────────
   useEffect(() => {
@@ -200,7 +201,7 @@ export function TutorPage() {
     setConfigError(null)
     setIsLoadingConfig(true)
     try {
-      const config = await getTutorV2vConfig(childAge, selectedVoice, selectedGame)
+      const config = await getTutorV2vConfig(childAge, selectedVoice, selectedGame, contentLanguage)
       if (availableVoices.length <= 1) setAvailableVoices(config.available_voices)
 
       const liveConfig: GeminiLiveConfig = {
@@ -218,7 +219,7 @@ export function TutorPage() {
     } finally {
       setIsLoadingConfig(false)
     }
-  }, [childAge, selectedVoice, selectedGame, gemini, availableVoices.length, systemPrompt, recorder, t])
+  }, [childAge, selectedVoice, selectedGame, contentLanguage, gemini, availableVoices.length, systemPrompt, recorder, t])
 
   const handleDisconnect = useCallback(() => {
     microphone.stopRecording()
@@ -351,6 +352,21 @@ export function TutorPage() {
                 {g.name}
               </option>
             ))}
+          </select>
+        </div>
+
+        {/* Content language selector */}
+        <div className="flex items-center gap-1.5">
+          <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+          <select
+            id="tutor-language"
+            value={contentLanguage}
+            onChange={(e) => setContentLanguage(e.target.value)}
+            disabled={isConnected}
+            className="rounded-md border bg-background px-2 py-1 text-sm focus:border-primary focus:outline-none disabled:opacity-50"
+          >
+            <option value="zh-TW">{t('tutor.langZhTW')}</option>
+            <option value="en">{t('tutor.langEn')}</option>
           </select>
         </div>
 

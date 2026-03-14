@@ -40,6 +40,12 @@
     "themeSong": "主題兒歌",
     "themeSongDesc": "即將推出",
     "comingSoon": "即將推出",
+    "contentLanguage": "故事語言",
+    "contentLanguageHint": "選擇故事內容與語音的語言（與介面語言獨立）",
+    "chinese": "中文",
+    "chineseDesc": "繁體中文故事",
+    "english": "英文",
+    "englishDesc": "英文故事",
     "generating": "故事準備中...",
     "generateStory": "開始生成故事"
   },

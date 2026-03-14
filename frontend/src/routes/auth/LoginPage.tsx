@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { LoginButton } from '@/components/auth/LoginButton'
 import { useLoginRedirect } from '@/hooks/useLoginRedirect'
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 
 export function LoginPage() {
   const { isAuthenticated, error, clearError } = useAuthStore()
@@ -30,6 +31,10 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background">
+      {/* Language switcher in top-right corner */}
+      <div className="absolute right-4 top-4">
+        <LanguageSwitcher />
+      </div>
       <div className="w-full max-w-md space-y-8 rounded-xl border bg-card p-8 shadow-lg">
         {/* Logo / Title */}
         <div className="text-center">

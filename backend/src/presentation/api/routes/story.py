@@ -27,10 +27,11 @@ from src.domain.entities.story import (
 from src.domain.repositories.story_repository import IStoryRepository
 from src.domain.services.story.content_generator import StoryContentGenerator
 from src.domain.services.story.prompts import (
-    EMOTION_LABELS,
-    VALUE_LABELS,
     build_child_config_story_context,
     build_custom_system_prompt,
+    get_default_learning_scenarios,
+    get_emotion_labels,
+    get_value_labels,
 )
 from src.infrastructure.persistence.story_background_tasks import (
     generate_images_background,
@@ -157,16 +158,6 @@ def _session_to_response(
 # Available Gemini TTS voices for story narration
 AVAILABLE_VOICES = ["Kore", "Puck", "Charon", "Fenrir", "Aoede", "Leda"]
 
-DEFAULT_LEARNING_SCENARIOS = [
-    "自己穿室內拖",
-    "自己刷牙",
-    "溜滑梯排隊禮讓",
-    "說請和謝謝",
-    "自己整理玩具",
-    "安靜等待輪到自己",
-]
-
-
 # =============================================================================
 # Defaults Endpoint
 # =============================================================================
@@ -177,12 +168,16 @@ DEFAULT_LEARNING_SCENARIOS = [
     response_model=StoryDefaultsResponse,
     summary="取得設定介面預設資料",
 )
-async def get_defaults() -> StoryDefaultsResponse:
+async def get_defaults(
+    language: str = Query(default="zh-TW", description="Language for labels (zh-TW or en)"),
+) -> StoryDefaultsResponse:
     """Return default options for the story setup form."""
     return StoryDefaultsResponse(
-        default_learning_scenarios=DEFAULT_LEARNING_SCENARIOS,
-        values=[DefaultsValueOption(key=k, label=v) for k, v in VALUE_LABELS.items()],
-        emotions=[DefaultsValueOption(key=k, label=v) for k, v in EMOTION_LABELS.items()],
+        default_learning_scenarios=get_default_learning_scenarios(language),
+        values=[DefaultsValueOption(key=k, label=v) for k, v in get_value_labels(language).items()],
+        emotions=[
+            DefaultsValueOption(key=k, label=v) for k, v in get_emotion_labels(language).items()
+        ],
         available_voices=AVAILABLE_VOICES,
     )
 
@@ -281,20 +276,27 @@ async def create_session(
     if request.child_config:
         child_config_data = request.child_config.model_dump()
         child = ChildConfig(**child_config_data)
-        system_prompt = build_custom_system_prompt(child)
+        content_lang = request.language
+        system_prompt = build_custom_system_prompt(child, language=content_lang)
 
         # When template is also selected, append template context as style reference
         if request.template_id and db_tmpl:
             tmpl_context = db_tmpl.system_prompt or db_tmpl.description
-            system_prompt += f"\n\n## 故事風格參考\n{tmpl_context}"
+            style_header = "## Story Style Reference" if content_lang == "en" else "## 故事風格參考"
+            system_prompt += f"\n\n{style_header}\n{tmpl_context}"
             # Replace template protagonist with favorite_character if provided
             if child.favorite_character and characters_config:
                 characters_config[0]["name"] = child.favorite_character
 
         story_state["system_prompt"] = system_prompt  # WS 互動模式用
-        story_state["child_story_context"] = build_child_config_story_context(child)  # 靜態故事用
+        story_state["child_story_context"] = build_child_config_story_context(
+            child, language=content_lang
+        )  # 靜態故事用
         if not request.title:
-            title = f"{child.favorite_character or '故事精靈'}的冒險"
+            if content_lang == "en":
+                title = f"{child.favorite_character or 'Story Sprite'}'s Adventure"
+            else:
+                title = f"{child.favorite_character or '故事精靈'}的冒險"
 
     # Store voice/story mode settings in story_state JSONB
     if request.voice_mode:

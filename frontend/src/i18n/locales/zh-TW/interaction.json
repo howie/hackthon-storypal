@@ -48,6 +48,10 @@
     "stopSpeaking": "停止說話",
     "startSpeaking": "開始說話",
     "micError": "麥克風錯誤：{{error}}",
-    "configError": "無法取得連線設定"
+    "configError": "無法取得連線設定",
+    "contentLanguage": "內容語言",
+    "contentLanguageHint": "AI 老師回應的語言（與介面語言獨立）",
+    "langZhTW": "中文",
+    "langEn": "英文"
   }
 }

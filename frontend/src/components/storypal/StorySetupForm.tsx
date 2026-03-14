@@ -10,7 +10,7 @@
  */
 
 import { useState } from 'react'
-import { BookOpen, ChevronDown, GitFork, Loader2, Sparkles, User, Users } from 'lucide-react'
+import { BookOpen, ChevronDown, GitFork, Globe, Loader2, Sparkles, User, Users } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type {
   ChildConfig,
@@ -76,6 +76,8 @@ interface StorySetupFormProps {
     ttsProvider?: string,
   ) => void
   isLoading?: boolean
+  contentLanguage?: string
+  onContentLanguageChange?: (lang: string) => void
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -87,6 +89,8 @@ export function StorySetupForm({
   onSelectTemplate,
   onSubmit,
   isLoading = false,
+  contentLanguage = 'zh-TW',
+  onContentLanguageChange,
 }: StorySetupFormProps) {
   const { t } = useTranslation('story')
 
@@ -213,6 +217,45 @@ export function StorySetupForm({
           <p className="text-sm text-muted-foreground">
             {t('setup.subtitle')}
           </p>
+        </div>
+
+        {/* ── Content Language ────────────────────────────────────────── */}
+        <div className="border-b pb-6">
+          <h3 className="mb-2 text-sm font-medium flex items-center gap-1.5">
+            <Globe className="h-4 w-4" />
+            {t('setup.contentLanguage')}
+          </h3>
+          <p className="mb-3 text-xs text-muted-foreground">
+            {t('setup.contentLanguageHint')}
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => onContentLanguageChange?.('zh-TW')}
+              className={cn(
+                'flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 transition-all',
+                contentLanguage === 'zh-TW'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-muted-foreground/30'
+              )}
+            >
+              <span className="text-sm font-medium">{t('setup.chinese')}</span>
+              <span className="text-xs text-muted-foreground">{t('setup.chineseDesc')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onContentLanguageChange?.('en')}
+              className={cn(
+                'flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 transition-all',
+                contentLanguage === 'en'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-muted-foreground/30'
+              )}
+            >
+              <span className="text-sm font-medium">{t('setup.english')}</span>
+              <span className="text-xs text-muted-foreground">{t('setup.englishDesc')}</span>
+            </button>
+          </div>
         </div>
 
         {/* ── Template Selector (optional) ─────────────────────────────── */}
