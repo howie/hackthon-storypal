@@ -7,6 +7,7 @@ import {
   Sparkles,
   Disc3,
   Home,
+  Play,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
@@ -20,6 +21,7 @@ export function Sidebar() {
     { name: t('nav.voiceStory'), href: '/storypal', icon: BookOpen },
     { name: t('nav.magicDJ'), href: '/magic-dj', icon: Disc3 },
     { name: t('nav.tutor'), href: '/tutor', icon: Sparkles },
+    { name: t('nav.demo'), href: '/demo', icon: Play },
   ]
 
   return (
