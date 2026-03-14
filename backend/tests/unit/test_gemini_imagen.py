@@ -15,11 +15,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.domain.errors import QuotaExceededError
 from src.infrastructure.providers.image.factory import ImageProviderFactory
 from src.infrastructure.providers.image.gemini_imagen import (
     GeminiImagenProvider,
     ImageProviderError,
-    QuotaExceededError,
 )
 
 
@@ -98,7 +98,7 @@ async def test_generate_image_quota_exceeded(provider: GeminiImagenProvider) -> 
     """429 exception raises QuotaExceededError."""
     mock_generate = AsyncMock(side_effect=Exception("429 RESOURCE_EXHAUSTED: quota exceeded"))
     with patch.object(provider._client.aio.models, "generate_images", mock_generate):
-        with pytest.raises(QuotaExceededError, match="429"):
+        with pytest.raises(QuotaExceededError):
             await provider.generate_image("test prompt")
 
 

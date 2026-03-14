@@ -31,8 +31,8 @@ logger = logging.getLogger(__name__)
 # See: https://ai.google.dev/gemini-api/docs/models
 # See: https://ai.google.dev/gemini-api/docs/live
 AVAILABLE_MODELS = [
-    "gemini-2.5-flash-native-audio-preview-12-2025",  # Native audio, Chinese support
-    "gemini-2.5-flash-native-audio-preview-09-2025",  # Newer preview version
+    "gemini-2.5-flash-native-audio-preview-12-2025",  # Newer preview, native audio + Chinese support
+    "gemini-2.5-flash-native-audio-preview-09-2025",  # Older preview version
 ]
 
 # Default configuration - use 2.5 native audio for Chinese support
@@ -61,6 +61,7 @@ class GeminiRealtimeService(InteractionModeService):
         self._api_key = api_key
         self._client = genai.Client(api_key=api_key)
         self._session: Any = None  # GenAI Live session
+        self._live_ctx: Any = None  # async context manager for live.connect()
         self._session_id: UUID | None = None
         self._connected = False
         self._event_queue: asyncio.Queue[ResponseEvent] = asyncio.Queue()
@@ -145,6 +146,8 @@ class GeminiRealtimeService(InteractionModeService):
             system_instruction=types.Content(parts=[types.Part(text=effective_prompt)]),
             input_audio_transcription=types.AudioTranscriptionConfig(),
             output_audio_transcription=types.AudioTranscriptionConfig(),
+            # Disable thinking for faster response (no internal reasoning delay)
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
         )
 
         logger.info(
@@ -158,12 +161,13 @@ class GeminiRealtimeService(InteractionModeService):
 
         try:
             logger.info("Connecting to Gemini Live API via GenAI SDK...")
-            self._session = await self._client.aio.live.connect(
+            # aio.live.connect() is an async context manager; we enter it manually
+            # so the session stays open beyond this method. __aexit__ is called in disconnect().
+            self._live_ctx = self._client.aio.live.connect(
                 model=model,
                 config=live_config,
             )
-            # The SDK handles setup internally; if connect() returns successfully,
-            # the session is ready
+            self._session = await self._live_ctx.__aenter__()
             self._connected = True
             self._setup_complete = True
 
@@ -197,10 +201,11 @@ class GeminiRealtimeService(InteractionModeService):
                 await self._receive_task
             self._receive_task = None
 
-        # Close Live session
-        if self._session:
+        # Close Live session via context manager exit
+        if self._live_ctx:
             with contextlib.suppress(Exception):
-                await self._session.close()
+                await self._live_ctx.__aexit__(None, None, None)
+            self._live_ctx = None
             self._session = None
 
         self._session_id = None
@@ -307,6 +312,9 @@ class GeminiRealtimeService(InteractionModeService):
         try:
             async for message in self._session.receive():
                 await self._handle_sdk_message(message)
+            # Iterator ended normally (server closed session)
+            logger.info("Gemini Live session receive loop ended normally")
+            self._connected = False
         except asyncio.CancelledError:
             raise
         except Exception as e:

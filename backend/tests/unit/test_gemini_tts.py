@@ -195,8 +195,12 @@ class TestGeminiTTSProvider:
     @pytest.mark.asyncio
     async def test_health_check_configured(self, gemini_provider: GeminiTTSProvider):
         """Test health check when properly configured."""
-        mock_generate = AsyncMock(return_value=_make_sdk_tts_response())
-        with patch.object(gemini_provider._client.aio.models, "generate_content", mock_generate):
+
+        async def _fake_list(*args, **kwargs):
+            yield MagicMock()
+
+        mock_list = AsyncMock(return_value=_fake_list())
+        with patch.object(gemini_provider._client.aio.models, "list", mock_list):
             is_healthy = await gemini_provider.health_check()
             assert is_healthy is True
 
@@ -213,8 +217,8 @@ class TestGeminiTTSProvider:
     @pytest.mark.asyncio
     async def test_health_check_api_error(self, gemini_provider: GeminiTTSProvider):
         """Test health check when API returns error."""
-        mock_generate = AsyncMock(side_effect=Exception("Connection error"))
-        with patch.object(gemini_provider._client.aio.models, "generate_content", mock_generate):
+        mock_list = AsyncMock(side_effect=Exception("Connection error"))
+        with patch.object(gemini_provider._client.aio.models, "list", mock_list):
             is_healthy = await gemini_provider.health_check()
             assert is_healthy is False
 
