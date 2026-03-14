@@ -12,6 +12,7 @@ from uuid import UUID
 
 from fastapi import WebSocket
 
+from src.config import get_settings
 from src.domain.entities import (
     ConversationTurn,
     InteractionMode,
@@ -82,6 +83,8 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         # Lightweight mode: buffer audio for batch upload instead of sync storage
         self._audio_buffer: list[tuple[bytes, int]] = []  # (audio_bytes, turn_number)
         self._audio_buffer_task: asyncio.Task[None] | None = None
+
+        self._max_messages: int = get_settings().max_chat_messages_per_session
 
         # Register message handlers
         self.register_handler(MessageType.CONFIG, self._handle_config)
@@ -414,6 +417,12 @@ class InteractionWebSocketHandler(BaseWebSocketHandler):
         self._response_started_sent = False
 
         turn_number = await self._repository.get_next_turn_number(self._session.id)
+        if turn_number > self._max_messages:
+            await self.send_error(
+                "USAGE_LIMIT_EXCEEDED",
+                f"本次對話已達上限 ({self._max_messages} 則)，請開啟新的對話。",
+            )
+            return
         self._current_turn = ConversationTurn(
             session_id=self._session.id,
             turn_number=turn_number,

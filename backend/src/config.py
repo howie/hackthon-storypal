@@ -74,6 +74,11 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Usage limits
+    max_stories_per_user: int = 3
+    max_chat_messages_per_session: int = 10
+    admin_contact_info: str = ""
+
     # Gemini TTS configuration
     gemini_tts_model: str = "gemini-2.5-pro-preview-tts"
     gemini_tts_default_voice: str = "Kore"

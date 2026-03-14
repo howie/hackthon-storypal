@@ -20,6 +20,7 @@ from fastapi.responses import Response
 
 from src.application.interfaces.llm_provider import ILLMProvider
 from src.application.interfaces.tts_provider import ITTSProvider
+from src.config import get_settings
 from src.domain.entities.story import (
     ChildConfig,
     StorySessionStatus,
@@ -245,6 +246,30 @@ async def create_session(
         )
 
     user_id = uuid.UUID(current_user.id)
+
+    # Usage limit check: max stories per user
+    settings = get_settings()
+    session_count = await story_repo.count_completed_sessions(user_id)
+    if session_count >= settings.max_stories_per_user:
+        logger.warning(
+            "USAGE LIMIT: User %s (%s) reached story limit (%d/%d). Please contact admin.",
+            current_user.email,
+            user_id,
+            session_count,
+            settings.max_stories_per_user,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "USAGE_LIMIT_EXCEEDED",
+                "message": (
+                    f"已達故事上限 ({settings.max_stories_per_user} 個)，"
+                    "請聯絡管理員 (GitHub Owner) 以取得更多配額。"
+                ),
+                "current_count": session_count,
+                "max_allowed": settings.max_stories_per_user,
+            },
+        )
 
     # Resolve template
     template_id = None

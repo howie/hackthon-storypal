@@ -29,6 +29,15 @@ export interface QuotaError {
   request_id?: string
 }
 
+export const USAGE_LIMIT_EXCEEDED = 'USAGE_LIMIT_EXCEEDED' as const
+
+export interface UsageLimitErrorDetails {
+  code: typeof USAGE_LIMIT_EXCEEDED
+  message: string
+  current_count?: number
+  max_allowed?: number
+}
+
 export interface ApiErrorResponse {
   error: {
     code: string

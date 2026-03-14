@@ -30,6 +30,7 @@ class ErrorCode(StrEnum):
     # Authorization errors (403)
     FORBIDDEN = "FORBIDDEN"
     QUOTA_EXCEEDED = "QUOTA_EXCEEDED"
+    USAGE_LIMIT_EXCEEDED = "USAGE_LIMIT_EXCEEDED"
 
     # Not found errors (404)
     VOICE_NOT_FOUND = "VOICE_NOT_FOUND"

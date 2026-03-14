@@ -226,6 +226,11 @@ class IStoryRepository(ABC):
         """Return all turns for a session ordered by turn_number."""
         ...
 
+    @abstractmethod
+    async def count_completed_sessions(self, user_id: UUID) -> int:
+        """Count completed story sessions for a user."""
+        ...
+
     # -------------------------------------------------------------------------
     # Generated content operations
     # -------------------------------------------------------------------------

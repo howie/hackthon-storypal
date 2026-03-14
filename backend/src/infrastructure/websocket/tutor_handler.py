@@ -13,6 +13,7 @@ from uuid import UUID
 from fastapi import WebSocket
 
 from src.application.interfaces.llm_provider import ILLMProvider
+from src.config import get_settings
 from src.domain.services.story.tutor import TutorService
 from src.infrastructure.websocket.base_handler import (
     BaseWebSocketHandler,
@@ -39,6 +40,8 @@ class TutorWebSocketHandler(BaseWebSocketHandler):
         self._tutor = TutorService(llm_provider)
         self._child_age = child_age
         self._history: list[dict[str, str]] = []
+        self._message_count: int = 0
+        self._max_messages: int = get_settings().max_chat_messages_per_session
 
     async def on_connect(self) -> None:
         await self.send_message(
@@ -75,8 +78,22 @@ class TutorWebSocketHandler(BaseWebSocketHandler):
             self._logger.error(f"Tutor handler error: {e}")
             await self.send_error("TUTOR_ERROR", str(e))
 
+    async def _check_message_limit(self) -> bool:
+        """Increment counter and send error if limit exceeded. Returns True if blocked."""
+        self._message_count += 1
+        if self._message_count > self._max_messages:
+            await self.send_error(
+                "USAGE_LIMIT_EXCEEDED",
+                f"本次對話已達上限 ({self._max_messages} 則)，請開啟新的對話。",
+            )
+            return True
+        return False
+
     async def _handle_ask(self, data: dict[str, Any]) -> None:
         """Handle an ``ask`` message — child asks a question."""
+        if await self._check_message_limit():
+            return
+
         text = data.get("text", "").strip()
         if not text:
             await self.send_error("EMPTY_QUESTION", "請問一個問題喔！")
@@ -107,6 +124,9 @@ class TutorWebSocketHandler(BaseWebSocketHandler):
 
     async def _handle_word_game(self, data: dict[str, Any]) -> None:
         """Handle a ``word_game`` message — start or continue word chain."""
+        if await self._check_message_limit():
+            return
+
         action = data.get("action", "start")
         word = data.get("word", "")
         game_type = data.get("game_type", "word_chain")
