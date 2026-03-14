@@ -177,6 +177,13 @@ export function useGeminiLive(
   // Process a parsed WebSocket message
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const processMessage = useCallback((msg: any) => {
+    // Handle backend proxy error messages (e.g. "API key not configured")
+    if (msg.type === 'error' && msg.data?.message) {
+      setError(msg.data.message)
+      updateStatus('error')
+      return
+    }
+
     // Setup complete
     if (msg.setupComplete !== undefined) {
       const setupMs = performance.now() - connectStartRef.current
