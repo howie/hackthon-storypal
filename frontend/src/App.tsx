@@ -12,6 +12,7 @@ const StoryPage = lazy(() => import('@/routes/storypal/StoryPage').then(m => ({ 
 const StoryGamePage = lazy(() => import('@/routes/story-game/StoryGamePage').then(m => ({ default: m.StoryGamePage })))
 const TutorPage = lazy(() => import('@/routes/tutor/TutorPage').then(m => ({ default: m.TutorPage })))
 const LandingPage = lazy(() => import('@/routes/LandingPage').then(m => ({ default: m.LandingPage })))
+const DemoPage = lazy(() => import('@/routes/demo/DemoPage').then(m => ({ default: m.DemoPage })))
 
 function AppContent() {
   const checkAuth = useAuthStore((state) => state.checkAuth)
@@ -42,6 +43,7 @@ function AppContent() {
       {/* Public routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/demo" element={<DemoPage />} />
 
       {/* Protected routes */}
       <Route
