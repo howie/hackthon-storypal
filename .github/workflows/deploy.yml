@@ -13,7 +13,6 @@ env:
 jobs:
   deploy:
     name: Build & Deploy
-    if: secrets.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
     runs-on: ubuntu-latest
     permissions:
       contents: read
