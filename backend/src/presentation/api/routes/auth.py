@@ -3,7 +3,7 @@
 import logging
 import os
 from datetime import UTC, datetime
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -41,6 +41,17 @@ GOOGLE_SCOPES = ["openid", "profile", "email"]
 BASE_URL = os.getenv("BASE_URL", "")
 # Use 'or' to handle both unset and empty string cases
 FRONTEND_URL = os.getenv("FRONTEND_URL") or "http://localhost:5173"
+
+# Allowed redirect origins (whitelist) — only FRONTEND_URL by default
+_ALLOWED_REDIRECT_ORIGINS = {urlparse(FRONTEND_URL).netloc}
+
+
+def _validate_redirect_uri(uri: str) -> str:
+    """Return uri if its origin is whitelisted, otherwise fall back to FRONTEND_URL."""
+    parsed = urlparse(uri)
+    if parsed.netloc in _ALLOWED_REDIRECT_ORIGINS and parsed.scheme in ("http", "https"):
+        return uri
+    return FRONTEND_URL
 
 
 def get_base_url(request: Request) -> str:
@@ -132,8 +143,8 @@ async def google_auth_start(
     base_url = get_base_url(request)
     callback_url = f"{base_url}/api/v1/auth/google/callback"
 
-    # Build state with redirect URI
-    state = redirect_uri or FRONTEND_URL
+    # Build state with redirect URI (validate against whitelist)
+    state = _validate_redirect_uri(redirect_uri) if redirect_uri else FRONTEND_URL
 
     params = {
         "client_id": GOOGLE_CLIENT_ID,
@@ -212,8 +223,8 @@ async def google_auth_callback(
     try:
         validate_email_domain(email)
     except DomainValidationError:
-        # Redirect to frontend with error
-        redirect_url = state or FRONTEND_URL
+        # Redirect to frontend with error (validate state to prevent open redirect)
+        redirect_url = _validate_redirect_uri(state) if state else FRONTEND_URL
         separator = "&" if "?" in redirect_url else "?"
         error_msg = f"domain_not_allowed:{email.split('@')[1] if '@' in email else 'unknown'}"
         return RedirectResponse(url=f"{redirect_url}{separator}error={error_msg}")
@@ -236,10 +247,10 @@ async def google_auth_callback(
         picture_url=user.picture_url,
     )
 
-    # Redirect to frontend with token
-    redirect_url = state or FRONTEND_URL
-    separator = "&" if "?" in redirect_url else "?"
-    return RedirectResponse(url=f"{redirect_url}{separator}token={jwt_token}")
+    # Redirect to frontend with token in fragment (not query string) to avoid
+    # token leakage via browser history, Referer headers, and server logs
+    redirect_url = _validate_redirect_uri(state) if state else FRONTEND_URL
+    return RedirectResponse(url=f"{redirect_url}#token={jwt_token}")
 
 
 @router.get("/me", response_model=UserResponse)

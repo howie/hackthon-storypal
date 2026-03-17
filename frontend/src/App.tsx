@@ -21,12 +21,15 @@ function AppContent() {
 
   // Handle OAuth token from URL and check auth
   useEffect(() => {
+    // Token is passed via fragment (#token=...) to avoid leaking via Referer/logs
+    const hash = new URLSearchParams(window.location.hash.slice(1))
+    const fragmentToken = hash.get('token')
+
     const params = new URLSearchParams(window.location.search)
-    const token = params.get('token')
     const error = params.get('error')
 
-    if (token) {
-      setToken(token)
+    if (fragmentToken) {
+      setToken(fragmentToken)
       window.history.replaceState({}, '', window.location.pathname)
       checkAuth()
     } else if (error) {
