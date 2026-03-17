@@ -139,14 +139,27 @@ app.include_router(api_router, prefix=settings.api_prefix)
 
 # Serve audio files
 _storage_path = os.getenv("LOCAL_STORAGE_PATH", "./storage")
+_ALLOWED_FILE_PREFIXES = ("stories/", "dj-audio/", "audio/")
 
 
 @app.get("/files/{path:path}", include_in_schema=False)
 async def serve_file(path: str) -> Response:
     """Proxy route that serves audio files from local storage or GCS."""
-    local_path = Path(_storage_path) / path
-    if local_path.exists():
-        return FileResponse(str(local_path))
+    # Restrict to allowed subdirectories only
+    if not any(path.startswith(prefix) for prefix in _ALLOWED_FILE_PREFIXES):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Prevent path traversal for local storage
+    resolved = (Path(_storage_path) / path).resolve()
+    if not resolved.is_relative_to(Path(_storage_path).resolve()):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if resolved.exists():
+        return FileResponse(str(resolved))
+
+    # Prevent path traversal for GCS
+    if ".." in path:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     bucket = os.getenv("AUDIO_BUCKET")
     if bucket:
